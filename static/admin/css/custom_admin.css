@@ -1,0 +1,164 @@
+/* Override Django admin styles */
+:root {
+    --primary: #79aec8;
+    --secondary: #417690;
+    --accent: #f5dd5d;
+    --primary-fg: #fff;
+    --body-fg: #333;
+    --body-bg: #fff;
+    --body-quiet-color: #666;
+    --body-medium-color: #444;
+    --body-loud-color: #000;
+    --header-color: #ffc;
+    --header-branding-color: var(--accent);
+    --header-bg: var(--secondary);
+    --header-link-color: var(--primary-fg);
+    --breadcrumbs-fg: #c4dce8;
+    --breadcrumbs-link-fg: var(--body-bg);
+    --breadcrumbs-bg: #264b5d;
+    --link-fg: #417893;
+    --link-hover-color: #036;
+    --link-selected-fg: var(--secondary);
+    --hairline-color: #e8e8e8;
+    --border-color: #ccc;
+}
+
+/* Custom styles */
+#header {
+    background: var(--header-bg);
+    color: var(--header-color);
+}
+
+#branding h1 {
+    color: var(--header-branding-color);
+}
+
+.module h2, .module caption {
+    background: var(--header-bg);
+    color: var(--header-color);
+}
+
+div.breadcrumbs {
+    background: var(--breadcrumbs-bg);
+    color: var(--breadcrumbs-fg);
+}
+
+div.breadcrumbs a {
+    color: var(--breadcrumbs-link-fg);
+}
+
+.button, input[type=submit], input[type=button], .submit-row input {
+    background: var(--secondary);
+    color: var(--primary-fg);
+}
+
+.button:hover, input[type=submit]:hover, input[type=button]:hover {
+    background: var(--primary);
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+.status-draft { background-color: #ffc107; color: black; }
+.status-pending { background-color: #ffc107; color: black; }
+.status-in-progress { background-color: #0d6efd; color: white; }
+.status-completed { background-color: #28a745; color: white; }
+.status-rejected { background-color: #dc3545; color: white; }
+
+/* Remove any hover effects if they exist */
+.status-badge:hover {
+    opacity: 1;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Form styling */
+.form-row {
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 0;
+}
+
+/* Dark mode styles */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary: #404b64d6;
+        --primary-fg: #f7f7f7;
+        --body-fg: #eeeeee;
+        --body-bg: #121212;
+        --body-quiet-color: #d0d0d0;
+        --body-medium-color: #e0e0e0;
+        --body-loud-color: #ffffff;
+        --breadcrumbs-link-fg: #e0e0e0;
+        --breadcrumbs-bg: var(--primary);
+        --link-fg: #81d4fa;
+        --link-hover-color: #4ac1f7;
+        --link-selected-fg: #6f94c6;
+        --hairline-color: #272727;
+        --border-color: #353535;
+        --error-fg: #e35f5f;
+        --message-success-bg: #006b1b;
+        --message-warning-bg: #583305;
+        --message-error-bg: #570808;
+        --darkened-bg: #212121;
+        --selected-bg: #1b1b1b;
+        --selected-row: #00363a;
+        --close-button-bg: #333333;
+        --close-button-hover-bg: #666666;
+        color-scheme: dark;
+    }
+}
+
+/* Dark mode styles for manual toggle */
+html[data-theme="dark"] {
+    --primary: #404b64d6;
+    --primary-fg: #f7f7f7;
+    --body-fg: #eeeeee;
+    --body-bg: #121212;
+    --body-quiet-color: #d0d0d0;
+    --body-medium-color: #e0e0e0;
+    --body-loud-color: #ffffff;
+    --breadcrumbs-link-fg: #e0e0e0;
+    --breadcrumbs-bg: var(--primary);
+    --link-fg: #81d4fa;
+    --link-hover-color: #4ac1f7;
+    --link-selected-fg: #6f94c6;
+    --hairline-color: #272727;
+    --border-color: #353535;
+    --error-fg: #e35f5f;
+    --message-success-bg: #006b1b;
+    --message-warning-bg: #583305;
+    --message-error-bg: #570808;
+    --darkened-bg: #212121;
+    --selected-bg: #1b1b1b;
+    --selected-row: #00363a;
+    --close-button-bg: #333333;
+    --close-button-hover-bg: #666666;
+    color-scheme: dark;
+}
+
+/* Theme toggle button visibility */
+html[data-theme="dark"] .theme-toggle svg.theme-icon-when-dark {
+    display: block;
+}
+
+html[data-theme="light"] .theme-toggle svg.theme-icon-when-light {
+    display: block;
+}
+
+/* Responsive improvements */
+@media (max-width: 767px) {
+    #header {
+        padding: 1rem;
+    }
+    
+    .form-row {
+        padding: 0.75rem 0;
+    }
+}

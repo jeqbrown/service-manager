@@ -1,0 +1,40 @@
+{% extends "service/base.html" %}
+
+{% block title %}Work Orders - Service Manager{% endblock %}
+
+{% block content %}
+<div class="workorder-list">
+    <h1>Work Orders</h1>
+    
+    {% if workorders %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for workorder in workorders %}
+                <tr>
+                    <td>{{ workorder.id }}</td>
+                    <td>{{ workorder.customer.name }}</td>
+                    <td>{{ workorder.status }}</td>
+                    <td>{{ workorder.created_at|date:"Y-m-d" }}</td>
+                    <td>
+                        <a href="{% url 'service:workorder-detail' workorder.pk %}">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        {% include "service/partials/pagination.html" %}
+    {% else %}
+        <p>No work orders found.</p>
+    {% endif %}
+</div>
+{% endblock %}
