@@ -1,9 +1,23 @@
 {% extends "admin/base.html" %}
+{% load static %}
 
-{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block title %}{{ title }} | Service Manager{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/custom_admin.css' %}">
+{% endblock %}
 
 {% block branding %}
-<h1 id="site-name"><a href="{% url 'admin:index' %}">Service Manager Administration</a></h1>
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">Service Manager Administration</a>
+    </h1>
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
+
+{% block content %}
+    <div class="dashboard-wrapper">
+        {{ block.super }}
+    </div>
+{% endblock %}

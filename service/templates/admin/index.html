@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/dashboard.css' %}">
+{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <!-- Main area intentionally left empty -->
+</div>
+{% endblock %}
+
+{% block sidebar %}
+<div id="content-related">
+    <div class="module" id="recent-actions-module">
+        <h2>{% translate 'System Status' %}</h2>
+        <div class="dashboard-stats">
+            <div class="stat-item">
+                <span class="stat-label">Open Work Orders</span>
+                <span class="stat-value">{{ open_work_orders }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Pending Reports</span>
+                <span class="stat-value">{{ pending_reports }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Active Agreements</span>
+                <span class="stat-value">{{ active_agreements }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

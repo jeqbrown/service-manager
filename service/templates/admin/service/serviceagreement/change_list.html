@@ -1,0 +1,17 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools %}
+    <ul class="object-tools">
+        {% if update_status_button %}
+            <li>
+                <a href="{% url 'admin:service_serviceagreement_update_statuses' %}" class="refresh-button">
+                    {% trans update_status_button.label %}
+                </a>
+            </li>
+        {% endif %}
+        {% block object-tools-items %}
+            {{ block.super }}
+        {% endblock %}
+    </ul>
+{% endblock %}

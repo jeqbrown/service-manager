@@ -1,4 +1,5 @@
 from .customer import Customer, Contact
 from .instrument import InstrumentType, Instrument
 from .agreement import ServiceAgreement, EntitlementType, Entitlement
-from .workorder import WorkOrder, ServiceReport
+from .workorder import WorkOrder
+from .servicereport import ServiceReport

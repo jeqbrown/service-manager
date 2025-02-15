@@ -32,13 +32,14 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'service.apps.ServiceConfig',  # Your app first
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'service.apps.ServiceConfig',
+    # ... any other apps ...
 ]
 
 MIDDLEWARE = [
@@ -49,6 +50,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'service.middleware.current_user.CurrentUserMiddleware',
 ]
 
 ROOT_URLCONF = 'service_manager.urls'
@@ -56,7 +58,9 @@ ROOT_URLCONF = 'service_manager.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'service' / 'templates'],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'service/templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -120,9 +124,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Only include directories that contain your custom static files
+# Add your service app's static directory to STATICFILES_DIRS
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
+    os.path.join(BASE_DIR, 'service/static'),
 ]
 
 STATICFILES_FINDERS = [
@@ -147,25 +151,35 @@ AUTHENTICATION_BACKENDS = [
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] [{levelname}] {name}: {message}',
+            'style': '{',
         },
+    },
+    'handlers': {
         'file': {
+            'level': 'DEBUG',
             'class': 'logging.FileHandler',
             'filename': 'debug.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['file', 'console'],
             'level': 'INFO',
-            'propagate': False,  # Set this to False to prevent duplicate logging
+            'propagate': True,
         },
-        'service.utils': {
-            'handlers': ['console', 'file'],
+        'service': {  # This will catch all loggers in your service app
+            'handlers': ['file', 'console'],
             'level': 'DEBUG',
-            'propagate': False,  # Set this to False to prevent duplicate logging
+            'propagate': True,
         },
     },
 }

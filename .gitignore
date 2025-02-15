@@ -9,6 +9,7 @@ __pycache__/
 
 # Environment variables
 .env
+.env.*
 
 # Database files
 *.db
@@ -19,3 +20,16 @@ __pycache__/
 
 # System files
 .DS_Store
+Thumbs.db
+
+# Static and media files
+/media/
+/staticfiles/
+
+# Local development files
+local_settings.py
+
+# Backup files
+/backups/
+*.bundle
+*.tar.gz

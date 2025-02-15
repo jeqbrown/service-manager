@@ -5,22 +5,27 @@ from django.utils.html import format_html
 def get_status_badge(status: str, display_text: Optional[str] = None) -> str:
     """Generate an HTML status badge with appropriate colors."""
     colors = get_status_colors(status, display_text)
+    
     return format_html(
-        '<span class="status-badge status-{}">{}</span>',
-        status.lower().replace('_', '-'),
+        '<span style="background-color: {}; color: {}; padding: 4px 8px; '
+        'border-radius: 4px; font-size: 12px; font-weight: 500;">{}</span>',
+        colors['bg_color'],
+        colors['text_color'],
         colors['display_text']
     )
 
 def get_status_colors(status: str, display_text: Optional[str] = None) -> dict:
     """Get the colors and display text for a given status."""
-    status_key = status.lower()
+    status_key = status.lower().replace(' ', '_')  # Convert "In Progress" to "in_progress"
     
     colors = {
-        'draft': {'bg': '#6c757d', 'text': '#ffffff'},      # Grey
+        'draft': {'bg': '#f97316', 'text': '#ffffff'},      # Orange
+        'open': {'bg': '#0dcaf0', 'text': '#000000'},       # Info/Cyan
         'pending': {'bg': '#ffc107', 'text': '#000000'},    # Yellow
-        'in_progress': {'bg': '#0d6efd', 'text': '#ffffff'},# Blue
+        'in_progress': {'bg': '#ffc107', 'text': '#000000'},# Yellow
         'completed': {'bg': '#198754', 'text': '#ffffff'},   # Green
         'active': {'bg': '#198754', 'text': '#ffffff'},      # Green
+        'expired': {'bg': '#dc3545', 'text': '#ffffff'},     # Red
         'rejected': {'bg': '#dc3545', 'text': '#ffffff'},    # Red
         'approved': {'bg': '#198754', 'text': '#ffffff'},    # Green
     }

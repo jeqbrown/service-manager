@@ -14,16 +14,25 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
 from django.urls import path
 from service.views import LandingPageView
+from service.admin.dashboard import CustomAdminSite
+from django.contrib import admin
+from service.admin.user_admin import UserAdmin
+from django.contrib.auth import get_user_model
 
-# Customize admin site
-admin.site.site_header = 'Service Manager'
-admin.site.site_title = 'Service Manager'
-admin.site.index_title = 'Service Manager Administration'
+# Create custom admin site instance
+admin_site = CustomAdminSite(name='custom_admin')
+
+# Copy all registered models from the default admin site
+for model, model_admin in admin.site._registry.items():
+    admin_site.register(model, model_admin.__class__)
+
+# Unregister and register the User model with custom admin
+admin_site.unregister(get_user_model())
+admin_site.register(get_user_model(), UserAdmin)
 
 urlpatterns = [
     path('', LandingPageView.as_view(), name='landing'),
-    path('admin/', admin.site.urls),
+    path('admin/', admin_site.urls),
 ]

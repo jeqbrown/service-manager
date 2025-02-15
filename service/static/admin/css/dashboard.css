@@ -1,0 +1,98 @@
+/* Quick Actions */
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.quick-actions a {
+    display: inline-block;
+    padding: 0.75rem 1rem;
+    background: var(--primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    text-align: center;
+    transition: background-color 0.3s;
+}
+
+.quick-actions a:hover {
+    background: var(--secondary);
+}
+
+/* Dashboard Lists */
+.dashboard-list {
+    padding: 1rem;
+}
+
+.dashboard-list ul {
+    list-style: none;
+    padding: 0;
+}
+
+.dashboard-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.dashboard-list .mini {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+/* Stats */
+.dashboard-stats {
+    padding: 1rem;
+}
+
+.stat-item {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 4px solid var(--primary);
+}
+
+.stat-label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+/* Module Enhancements */
+.module {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.module h2 {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    background: var(--primary);
+    color: white;
+    font-size: 1rem;
+    border-radius: 4px 4px 0 0;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+}

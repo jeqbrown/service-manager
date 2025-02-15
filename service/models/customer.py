@@ -1,13 +1,18 @@
 from django.db import models
+from django import forms
 
 class Customer(models.Model):
-    name = models.CharField(max_length=200, unique=True)
+    name = models.CharField(max_length=200)
     address = models.TextField()
     website = models.URLField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name = 'Customer'
+        verbose_name_plural = 'Customers'
 
 class Contact(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='contacts')
