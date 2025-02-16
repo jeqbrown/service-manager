@@ -1,0 +1,129 @@
+/* Base styles for all action links */
+.addlink, 
+.changelink, 
+.deletelink, 
+.viewlink {
+    display: inline-block;
+    padding: 4px 8px 4px 24px !important;
+    background-position: 6px center !important;
+    background-repeat: no-repeat !important;
+    text-decoration: none;
+    border-radius: 4px;
+    color: #447e9b;
+    margin: 0 2px;
+}
+
+/* Add button/link */
+.addlink {
+    background-image: url('/static/admin/img/icon-addlink.svg') !important;
+}
+
+/* Change/Edit button/link */
+.changelink {
+    background-image: url('/static/admin/img/icon-changelink.svg') !important;
+}
+
+/* Delete button/link */
+.deletelink {
+    background-image: url('/static/admin/img/icon-deletelink.svg') !important;
+}
+
+/* View button/link */
+.viewlink {
+    background-image: url('/static/admin/img/icon-viewlink.svg') !important;
+}
+
+/* Button states */
+.addlink:hover,
+.changelink:hover,
+.deletelink:hover,
+.viewlink:hover {
+    color: #036;
+    background-color: #f5f5f5;
+}
+
+/* Service history specific styles */
+.service-history {
+    margin: 20px 0;
+}
+
+.service-history .history-item {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.service-history .action-buttons {
+    margin: 10px 0;
+}
+
+.service-history .action-buttons strong {
+    margin-right: 10px;
+}
+
+/* Use Django's built-in admin styles */
+.addlink {
+    padding-left: 16px;
+    background: url(../admin/img/icon-addlink.svg) 0 1px no-repeat;
+}
+
+.changelink {
+    padding-left: 16px;
+    background: url(../admin/img/icon-changelink.svg) 0 1px no-repeat;
+}
+
+/* Button styles */
+.button {
+    background: #79aec8;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.button:hover {
+    background: #609ab6;
+}
+
+/* Object tools (top right buttons) */
+.object-tools a {
+    padding: 4px 8px 4px 24px !important;
+    background-position: 6px center !important;
+    background-repeat: no-repeat !important;
+}
+
+/* Make sure icons show in list view actions */
+.action-buttons {
+    margin: 10px 0;
+}
+
+.action-buttons a {
+    display: inline-block;
+    padding: 4px 8px 4px 24px !important;
+    background-position: 6px center !important;
+    background-repeat: no-repeat !important;
+    margin: 0 2px;
+}
+
+.action-buttons strong {
+    margin-right: 10px;
+}
+
+/* Ensure proper spacing for inline form icons */
+.inline-related .inline-deletelink {
+    float: right;
+    padding-left: 20px !important;
+    background-position: 0 center !important;
+}
+
+/* Style for the refresh/update button */
+.refresh-button {
+    background-image: url('/static/admin/img/icon-refresh.svg') !important;
+    background-position: 6px center !important;
+    background-repeat: no-repeat !important;
+    padding-left: 24px !important;
+}

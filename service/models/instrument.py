@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from .customer import Customer
 
 class InstrumentType(models.Model):
@@ -13,6 +14,13 @@ class Instrument(models.Model):
     instrument_type = models.ForeignKey(InstrumentType, on_delete=models.PROTECT)
     serial_number = models.CharField(max_length=50, unique=True)
     installation_date = models.DateField()
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_instruments'
+    )
 
     def __str__(self):
         return f"{self.instrument_type.name} - {self.serial_number}"

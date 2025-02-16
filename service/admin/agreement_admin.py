@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from django.urls import reverse, path
 from django.contrib import messages
@@ -12,35 +13,67 @@ from ..utils.status_colors import get_status_badge
 from ..models.workorder import WorkOrder
 from ..models.servicereport import ServiceReport
 
+class EntitlementInlineForm(forms.ModelForm):
+    class Meta:
+        model = Entitlement
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Get the parent ServiceAgreement instance
+        if self.instance:
+            parent_obj = self.instance.agreement if self.instance.pk else kwargs.get('initial', {}).get('agreement')
+        else:
+            parent_obj = kwargs.get('initial', {}).get('agreement')
+
+        # If we're in a formset, try to get the parent object from there
+        if hasattr(self, 'parent_instance'):
+            parent_obj = self.parent_instance
+
+        if parent_obj and hasattr(parent_obj, 'customer'):
+            # Filter instruments by the agreement's customer
+            self.fields['instrument'].queryset = Instrument.objects.filter(
+                customer=parent_obj.customer
+            ).select_related('instrument_type')
+
 class EntitlementInline(admin.TabularInline):
     model = Entitlement
+    form = EntitlementInlineForm
     extra = 1
     fields = ('entitlement_type', 'instrument', 'total', 'remaining')
     readonly_fields = ('remaining',)
-    autocomplete_fields = ['instrument']
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        
+        # Pass the parent instance to the form
+        formset.form.parent_instance = obj
+        return formset
 
     def remaining(self, obj):
-        if not obj or not obj.pk:
-            return 0
-        return obj.remaining
+        if obj.pk:
+            return obj.remaining
+        return "-"
     remaining.short_description = 'Remaining'
 
-@admin.register(ServiceAgreement)
+# Remove @admin.register decorators
 class ServiceAgreementAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'customer', 'start_date', 'end_date', 'colored_status', 'entitlements_summary')
-    list_filter = ('status', 'start_date', 'customer')
-    search_fields = ('customer__name',)
+    list_display = ('__str__', 'customer', 'po_number', 'start_date', 'end_date', 'status_badge')
+    list_filter = ('status', 'customer')
+    search_fields = ('customer__name', 'po_number')
     inlines = [EntitlementInline]
     autocomplete_fields = ['customer']
     change_list_template = 'admin/service/serviceagreement/change_list.html'
-    readonly_fields = ('service_summary',)
+    readonly_fields = ('service_summary', 'service_history')  # Add service_history here
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related('customer').prefetch_related(
             'entitlements',
             'entitlements__workorders',
-            'entitlements__entitlement_type'
+            'entitlements__entitlement_type',
+            'entitlements__workorders__service_reports__created_by'  # Updated from technician
         )
 
     def changelist_view(self, request, extra_context=None):
@@ -90,12 +123,12 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
         
         return redirect('..')
 
-    def colored_status(self, obj):
+    def status_badge(self, obj):
         """Display the status with color coding."""
         return get_status_badge(obj.status)
-    colored_status.short_description = 'Status'
-    colored_status.admin_order_field = 'status'
-    colored_status.allow_tags = True
+    status_badge.short_description = 'Status'
+    status_badge.admin_order_field = 'status'
+    status_badge.allow_tags = True
 
     def entitlements_summary(self, obj):
         entitlements = obj.entitlements.all()
@@ -187,7 +220,7 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
         # Service Reports Summary
         service_reports = ServiceReport.objects.filter(
             work_order__entitlement__agreement=obj
-        ).select_related('work_order', 'technician')
+        ).select_related('work_order', 'created_by')
         
         html.append('<div class="summary-section"><h3>Service Reports</h3>')
         html.append('<table style="width: 100%; border-collapse: collapse;">')
@@ -195,7 +228,7 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
             <tr style="background: #f5f5f5;">
                 <th style="padding: 8px; border: 1px solid #ddd;">SR #</th>
                 <th style="padding: 8px; border: 1px solid #ddd;">Status</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Work Order</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">WO #</th>
                 <th style="padding: 8px; border: 1px solid #ddd;">Technician</th>
                 <th style="padding: 8px; border: 1px solid #ddd;">Date</th>
                 <th style="padding: 8px; border: 1px solid #ddd;">Actions</th>
@@ -203,21 +236,10 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
         ''')
 
         for sr in service_reports:
-            status_colors = {
-                'pending': '#ffc107',    # yellow
-                'approved': '#28a745',    # green
-                'rejected': '#dc3545'     # red
-            }
-            status_color = status_colors.get(sr.approval_status, '#6c757d')
-            
             html.append(format_html('''
-                <tr style="border: 1px solid #ddd;">
+                <tr>
                     <td style="padding: 8px; border: 1px solid #ddd;">SR-{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">
-                        <span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px;">
-                            {}
-                        </span>
-                    </td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{}</td>
                     <td style="padding: 8px; border: 1px solid #ddd;">WO-{}</td>
                     <td style="padding: 8px; border: 1px solid #ddd;">{}</td>
                     <td style="padding: 8px; border: 1px solid #ddd;">{}</td>
@@ -227,10 +249,9 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
                 </tr>
             ''',
                 sr.id,
-                status_color,
                 sr.get_approval_status_display(),
                 sr.work_order.id,
-                sr.technician.get_full_name() if sr.technician else '-',
+                sr.created_by.get_full_name() if sr.created_by else '-',
                 sr.service_date.strftime('%Y-%m-%d'),
                 reverse('admin:service_servicereport_change', args=[sr.id])
             ))
@@ -242,16 +263,70 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
     
     service_summary.short_description = 'Service Summary'
 
+    def service_history(self, obj):
+        work_orders = WorkOrder.objects.filter(
+            entitlement__agreement=obj
+        ).select_related(
+            'assigned_to',
+            'instrument',
+            'entitlement__entitlement_type'
+        ).prefetch_related(
+            'service_reports',
+            'service_reports__created_by'
+        ).order_by('-created_at')
+
+        if not work_orders:
+            return "No service history available"
+
+        html = ['<div class="service-history">']
+        
+        for wo in work_orders:
+            status_badge = get_status_badge(wo.get_status_display())
+            
+            # Get service reports for this work order
+            service_reports = wo.service_reports.all()
+            sr_links = []
+            for sr in service_reports:
+                sr_url = reverse('admin:service_servicereport_change', args=[sr.pk])
+                sr_links.append(
+                    f'<a href="{sr_url}" class="button" '
+                    f'style="margin-right: 5px; font-size: 0.8em;">SR-{sr.pk}</a>'
+                )
+            
+            sr_html = ''.join(sr_links) if sr_links else 'No service reports'
+            
+            description = wo.description or "-"
+            if len(description) > 50:
+                description = description[:47] + "..."
+            
+            html.append(f'''
+                <div style="margin-bottom: 15px; border: 1px solid #ddd; padding: 10px;">
+                    <div style="margin-bottom: 10px;">
+                        <strong>WO-{wo.pk}</strong> - {status_badge}
+                        <br>
+                        <span style="color: #666;">{description}</span>
+                    </div>
+                    <div>
+                        <strong>Service Reports:</strong> {sr_html}
+                    </div>
+                </div>
+            ''')
+
+        html.append('</div>')
+        return format_html(''.join(html))
+
+    service_history.short_description = 'Service History'
+
     fieldsets = (
         (None, {
-            'fields': ('customer', 'start_date', 'end_date', 'status')
+            'fields': ('customer', 'po_number', 'start_date', 'end_date', 'status', 'notes')
         }),
-        ('Service Summary', {
-            'fields': ('service_summary',),
+        ('Service Details', {
+            'fields': ('service_summary', 'service_history'),
+            'classes': ('collapse',)
         }),
     )
 
-@admin.register(EntitlementType)
 class EntitlementTypeAdmin(admin.ModelAdmin):
     list_display = ('name', 'description', 'entitlement_count')
     search_fields = ('name',)
@@ -266,7 +341,6 @@ class EntitlementTypeAdmin(admin.ModelAdmin):
     entitlement_count.short_description = "Usage Count"
     entitlement_count.admin_order_field = 'entitlement_count'
 
-@admin.register(Entitlement)
 class EntitlementAdmin(admin.ModelAdmin):
     list_display = ('entitlement_type', 'agreement', 'instrument', 'total', 'get_used', 'get_remaining')
     list_filter = ('entitlement_type', 'agreement', 'instrument')

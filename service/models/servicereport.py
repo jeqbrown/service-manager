@@ -3,25 +3,33 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 class ServiceReport(models.Model):
-    STATUS_PENDING = 'pending'
+    STATUS_DRAFT = 'draft'
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_AWAITING = 'awaiting'
     STATUS_APPROVED = 'approved'
     STATUS_REJECTED = 'rejected'
     
     APPROVAL_STATUS_CHOICES = [
-        (STATUS_PENDING, 'Pending Approval'),
+        (STATUS_DRAFT, 'Draft'),
+        (STATUS_IN_PROGRESS, 'In Progress'),
+        (STATUS_AWAITING, 'Awaiting Approval'),
         (STATUS_APPROVED, 'Approved'),
         (STATUS_REJECTED, 'Rejected'),
     ]
 
     work_order = models.ForeignKey('WorkOrder', on_delete=models.CASCADE, related_name='service_reports')
-    technician = models.ForeignKey(User, on_delete=models.PROTECT)
+    created_by = models.ForeignKey(
+        User, 
+        on_delete=models.PROTECT,
+        related_name='created_service_reports'
+    )
     service_date = models.DateField()
     findings = models.TextField()
     actions_taken = models.TextField()
     approval_status = models.CharField(
         max_length=20,
         choices=APPROVAL_STATUS_CHOICES,
-        default=STATUS_PENDING
+        default=STATUS_DRAFT
     )
     approval_date = models.DateTimeField(null=True, blank=True)
     approval_notes = models.TextField(blank=True)

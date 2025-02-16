@@ -1,97 +1,46 @@
 from django.contrib import admin
-from django import forms
-from django.db.models import F, Count, Q
+from django.forms import ModelForm, ModelChoiceField
+from django.db.models import F, Count
 from django.contrib import messages
 from django.utils.html import format_html
 from django.urls import reverse
+from django.contrib.admin import SimpleListFilter
+from django.contrib.auth.models import User
+from django.shortcuts import redirect
 from ..models.workorder import WorkOrder
 from ..models.servicereport import ServiceReport
 from ..models.agreement import Entitlement
 from ..models.instrument import Instrument
-from django.contrib.auth.models import User
 from ..utils.status_colors import get_status_badge
-from django.core.exceptions import PermissionDenied
-from ..forms import ServiceReportForm
 
-class WorkOrderForm(forms.ModelForm):
-    class Meta:
-        model = WorkOrder
-        fields = '__all__'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        # Get the instrument either from initial data (new WO) or existing instance (edit WO)
-        instrument = None
-        if 'initial' in kwargs and 'instrument' in kwargs['initial']:
-            try:
-                instrument = Instrument.objects.get(id=kwargs['initial']['instrument'])
-            except Instrument.DoesNotExist:
-                pass
-        elif self.instance and self.instance.instrument_id:
-            instrument = self.instance.instrument
-
-        if instrument:
-            # Filter entitlements for this instrument
-            self.fields['entitlement'].queryset = (
-                Entitlement.objects
-                .filter(instrument=instrument)
-                .annotate(used_count=Count('workorders'))
-                .filter(total__gt=F('used_count'))
-            )
-
-    def clean(self):
-        cleaned_data = super().clean()
-        instrument = cleaned_data.get('instrument')
-        entitlement = cleaned_data.get('entitlement')
-        status = cleaned_data.get('status')
-
-        if entitlement and entitlement.instrument != instrument:
-            raise forms.ValidationError({
-                'entitlement': 'Selected entitlement does not belong to this instrument.'
-            })
-
-        if not entitlement and status != WorkOrder.STATUS_DRAFT:
-            raise forms.ValidationError({
-                'status': 'Work Order must remain in Draft status until an entitlement is assigned.'
-            })
-
-        return cleaned_data
-
-class ServiceReportInline(admin.TabularInline):
-    model = ServiceReport
-    extra = 1
-    fields = ('service_date', 'technician', 'approval_status', 'view_report')
-    readonly_fields = ('view_report',)
-
-    def view_report(self, obj):
-        if obj.pk:
-            url = reverse('admin:service_servicereport_change', args=[obj.pk])
-            return format_html('<a href="{}">View Details</a>', url)
-        return "-"
-    view_report.short_description = "Details"
-
-@admin.register(WorkOrder)
 class WorkOrderAdmin(admin.ModelAdmin):
-    form = WorkOrderForm
-    list_display = ('edit_link', 'instrument', 'description_display', 'colored_status', 'assigned_to_display', 'created_at')
-    list_filter = ('status', 'instrument__customer', 'assigned_to')
-    search_fields = ('id', 'instrument__serial_number', 'description', 'assigned_to__username', 'assigned_to__first_name', 'assigned_to__last_name')
-    readonly_fields = ('created_at', 'created_by')
-    inlines = [ServiceReportInline]
+    list_display = ('__str__', 'customer', 'instrument', 'status_badge', 'assigned_to', 'created_at')
+    list_filter = ('status', 'customer', 'assigned_to', 'created_at')
+    search_fields = ('customer__name', 'instrument__serial_number', 'description')
+    readonly_fields = ('created_at',)
     
+    def status_badge(self, obj):
+        return get_status_badge(obj.status)
+    status_badge.short_description = 'Status'
+    status_badge.admin_order_field = 'status'
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.request = request
+        return form
+
     def save_model(self, request, obj, form, change):
         if not change:  # If this is a new object
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
     
-    def description_display(self, obj):
-        """Truncate description if it's too long"""
-        if obj.description:
-            return (obj.description[:50] + '...') if len(obj.description) > 50 else obj.description
-        return "-"
-    description_display.short_description = "Description"
-    description_display.admin_order_field = 'description'
+    def description_truncated(self, obj):
+        """Truncate description to 30 characters"""
+        if obj.description and len(obj.description) > 30:
+            return f"{obj.description[:30]}..."
+        return obj.description or "-"
+    description_truncated.short_description = "Description"
+    description_truncated.admin_order_field = 'description'
 
     def colored_status(self, obj):
         return get_status_badge(obj.get_status_display())
@@ -101,19 +50,33 @@ class WorkOrderAdmin(admin.ModelAdmin):
 
     def assigned_to_display(self, obj):
         if obj.assigned_to:
-            return f"{obj.assigned_to.get_full_name() or obj.assigned_to.username}"
+            return obj.assigned_to.get_full_name() or obj.assigned_to.username
         return "-"
-    assigned_to_display.short_description = "Assigned To"
-    assigned_to_display.admin_order_field = 'assigned_to'
+    assigned_to_display.short_description = 'Assigned To'
+    assigned_to_display.admin_order_field = 'assigned_to__first_name'
 
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        if obj and hasattr(obj, 'entitlement') and obj.entitlement:
-            # Use the 'remaining' property instead of 'remaining_visits'
-            remaining = obj.entitlement.remaining
-            # Add remaining visits info to the form
-            form.base_fields['entitlement'].help_text = f'Remaining visits: {remaining}'
-        return form
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        if 'instrument' in request.GET:
+            try:
+                instrument = Instrument.objects.get(id=request.GET['instrument'])
+                initial.update({
+                    'customer': instrument.customer.pk,
+                    'instrument': instrument.pk,
+                    'created_by': request.user.pk,
+                })
+            except Instrument.DoesNotExist:
+                pass
+        return initial
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "assigned_to":
+            kwargs["queryset"] = User.objects.all().order_by('first_name', 'last_name')
+            kwargs["label_from_instance"] = lambda obj: obj.get_full_name() or obj.username
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    class Media:
+        js = ('js/workorder_admin.js',)
 
     def edit_link(self, obj):
         return format_html(
@@ -125,13 +88,81 @@ class WorkOrderAdmin(admin.ModelAdmin):
     edit_link.short_description = 'WO#'
     edit_link.admin_order_field = 'id'
 
-@admin.register(ServiceReport)
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'instrument',
+            'instrument__customer',
+            'assigned_to',
+            'created_by'
+        )
+
+    def service_report_actions(self, obj):
+        """Add buttons to view existing SRs and create new ones"""
+        # Get all related service reports
+        service_reports = obj.service_reports.all()
+        
+        # Create the "New SR" button
+        new_sr_url = f"{reverse('admin:service_servicereport_add')}?work_order={obj.pk}"
+        buttons = [
+            f'<a href="{new_sr_url}" class="button" style="margin-right: 5px;" target="_blank">New SR</a>'
+        ]
+        
+        # Add buttons for existing service reports
+        for sr in service_reports:
+            sr_url = reverse('admin:service_servicereport_change', args=[sr.pk])
+            buttons.append(
+                f'<a href="{sr_url}" class="button" '
+                f'style="margin-right: 5px; background: var(--secondary);" '
+                f'target="_blank">SR-{sr.pk}</a>'
+            )
+        
+        return format_html(''.join(buttons))
+    service_report_actions.short_description = "Actions"
+
+    def create_service_report(self, request, queryset):
+        """Action to create a new service report for selected work orders"""
+        if queryset.count() == 1:
+            work_order = queryset.first()
+            return redirect(f"{reverse('admin:service_servicereport_add')}?work_order={work_order.pk}")
+        else:
+            self.message_user(request, "Please select only one work order to create a service report.")
+    create_service_report.short_description = "Create Service Report"
+
+    def customer_link(self, obj):
+        url = reverse("admin:service_customer_change", args=[obj.customer.id])
+        return format_html(
+            '<a href="{}" onclick="return showRelatedObjectPopup(this);" '
+            'data-popup="yes" class="related-widget-wrapper-link">{}</a>', 
+            url, obj.customer.name
+        )
+    customer_link.short_description = 'Customer'
+    customer_link.admin_order_field = 'customer'
+
+    def instrument_link(self, obj):
+        if obj.instrument:
+            url = reverse("admin:service_instrument_change", args=[obj.instrument.id])
+            return format_html(
+                '<a href="{}" onclick="return showRelatedObjectPopup(this);" '
+                'data-popup="yes" class="related-widget-wrapper-link">{}</a>', 
+                url, obj.instrument.serial_number
+            )
+        return "-"
+    instrument_link.short_description = 'Instrument'
+    instrument_link.admin_order_field = 'instrument'
+
 class ServiceReportAdmin(admin.ModelAdmin):
-    list_display = ('id', 'work_order', 'service_date', 'technician', 'colored_approval_status')
-    list_filter = ('approval_status', 'work_order__instrument__customer', 'technician')
+    list_display = ('id', 'work_order', 'service_date', 'created_by_full_name', 'colored_approval_status')
+    list_filter = ('approval_status', 'work_order__instrument__customer', 'created_by')
     search_fields = ('work_order__id', 'work_order__instrument__serial_number', 
-                    'technician__username', 'technician__first_name', 'technician__last_name')
+                    'created_by__username', 'created_by__first_name', 'created_by__last_name')
     readonly_fields = ('approval_date', 'approved_by')
+
+    def created_by_full_name(self, obj):
+        if obj.created_by:
+            return obj.created_by.get_full_name() or obj.created_by.username
+        return "-"
+    created_by_full_name.short_description = 'Created By'
+    created_by_full_name.admin_order_field = 'created_by__first_name'
 
     def colored_approval_status(self, obj):
         return get_status_badge(obj.approval_status, obj.get_approval_status_display())

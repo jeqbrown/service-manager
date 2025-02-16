@@ -7,24 +7,25 @@ from django.urls import reverse
 from .customer import Customer
 
 class ServiceAgreement(models.Model):
+    STATUS_DRAFT = 'draft'
     STATUS_ACTIVE = 'active'
     STATUS_EXPIRED = 'expired'
-    STATUS_DRAFT = 'draft'
+    STATUS_CANCELLED = 'cancelled'
     
     STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Draft'),
         (STATUS_ACTIVE, 'Active'),
         (STATUS_EXPIRED, 'Expired'),
-        (STATUS_DRAFT, 'Draft')
+        (STATUS_CANCELLED, 'Cancelled'),
     ]
 
-    customer = models.ForeignKey(
-        'Customer',
-        related_name='agreements',
-        on_delete=models.CASCADE
-    )
+    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='agreements')
+    po_number = models.CharField(max_length=50, blank=True, verbose_name='PO/CC Number', 
+                               help_text='Purchase Order or Credit Card Number')
     start_date = models.DateField()
     end_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    notes = models.TextField(blank=True)
 
     def update_status(self):
         """Update agreement status based on dates"""

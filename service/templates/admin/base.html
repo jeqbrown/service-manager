@@ -4,6 +4,7 @@
 <head>
     <title>{% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="{% block stylesheet %}{% static "admin/css/base.css" %}{% endblock %}">
+    {% block dark-mode-vars %}{% endblock %}
     {% if not is_popup and is_nav_sidebar_enabled %}
         <link rel="stylesheet" href="{% static "admin/css/nav_sidebar.css" %}">
         <script src="{% static 'admin/js/nav_sidebar.js' %}" defer></script>
@@ -52,14 +53,12 @@
                             {% if user.has_usable_password %}
                                 <a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a> /
                             {% endif %}
-                            <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: inline;">
-                                {% csrf_token %}
-                                <button type="submit">{% translate 'Log out' %}</button>
-                            </form>
+                            <a href="{% url 'admin:logout' %}">{% translate 'Log out' %}</a>
                         {% endblock %}
                     </div>
                 {% endif %}
             {% endblock %}
+            {% block nav-global %}{% endblock %}
         </div>
         <!-- END Header -->
         {% block breadcrumbs %}

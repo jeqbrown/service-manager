@@ -3,37 +3,169 @@
 
 {% block extrastyle %}
     {{ block.super }}
-    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/dashboard.css' %}">
+    <style>
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            padding: 1.5rem;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+        }
+        .stat-card h2 {
+            color: var(--primary);
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 0.5rem;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .stat-label {
+            color: var(--secondary);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        .recent-activity {
+            margin-top: 2rem;
+        }
+        .activity-list {
+            list-style: none;
+            padding: 0;
+        }
+        .activity-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+        }
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        .urgent {
+            color: #dc3545;
+        }
+        .warning {
+            color: #ffc107;
+        }
+        .success {
+            color: #28a745;
+        }
+    </style>
 {% endblock %}
-
-{% block coltype %}colMS{% endblock %}
-
-{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
 
 {% block content %}
-<div id="content-main">
-    <!-- Main area intentionally left empty -->
-</div>
-{% endblock %}
-
-{% block sidebar %}
-<div id="content-related">
-    <div class="module" id="recent-actions-module">
-        <h2>{% translate 'System Status' %}</h2>
-        <div class="dashboard-stats">
+<div class="dashboard-container">
+    <!-- Work Orders Card -->
+    <div class="stat-card">
+        <h2>Work Orders</h2>
+        <div class="stat-grid">
             <div class="stat-item">
-                <span class="stat-label">Open Work Orders</span>
-                <span class="stat-value">{{ open_work_orders }}</span>
+                <div class="stat-value">{{ work_orders.open }}</div>
+                <div class="stat-label">Open</div>
             </div>
             <div class="stat-item">
-                <span class="stat-label">Pending Reports</span>
-                <span class="stat-value">{{ pending_reports }}</span>
+                <div class="stat-value">{{ work_orders.in_progress }}</div>
+                <div class="stat-label">In Progress</div>
             </div>
             <div class="stat-item">
-                <span class="stat-label">Active Agreements</span>
-                <span class="stat-value">{{ active_agreements }}</span>
+                <div class="stat-value">{{ work_orders.total }}</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ work_orders.recent }}</div>
+                <div class="stat-label">Last 30 Days</div>
             </div>
         </div>
     </div>
+
+    <!-- Service Reports Card -->
+    <div class="stat-card">
+        <h2>Service Reports</h2>
+        <div class="stat-grid">
+            <div class="stat-item">
+                <div class="stat-value warning">{{ service_reports.pending }}</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value success">{{ service_reports.approved }}</div>
+                <div class="stat-label">Approved</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value urgent">{{ service_reports.rejected }}</div>
+                <div class="stat-label">Rejected</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ service_reports.recent }}</div>
+                <div class="stat-label">Last 30 Days</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agreements Card -->
+    <div class="stat-card">
+        <h2>Service Agreements</h2>
+        <div class="stat-grid">
+            <div class="stat-item">
+                <div class="stat-value success">{{ agreements.active }}</div>
+                <div class="stat-label">Active</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value warning">{{ agreements.expiring_soon }}</div>
+                <div class="stat-label">Expiring Soon</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ total_customers }}</div>
+                <div class="stat-label">Customers</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ total_instruments }}</div>
+                <div class="stat-label">Instruments</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="stat-card">
+        <h2>Recent Work Orders</h2>
+        <ul class="activity-list">
+            {% for wo in recent_work_orders %}
+            <li class="activity-item">
+                <strong>WO-{{ wo.id }}</strong> - {{ wo.customer.name }}<br>
+                <small>{{ wo.created_at|date:"M d, Y" }} - {{ wo.get_status_display }}</small>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="stat-card">
+        <h2>Recent Service Reports</h2>
+        <ul class="activity-list">
+            {% for report in recent_reports %}
+            <li class="activity-item">
+                <strong>SR-{{ report.id }}</strong> - {{ report.work_order.customer.name }}<br>
+                <small>{{ report.service_date|date:"M d, Y" }} - {{ report.get_approval_status_display }}</small>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
 </div>
 {% endblock %}
+
+

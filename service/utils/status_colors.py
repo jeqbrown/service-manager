@@ -22,6 +22,7 @@ def get_status_colors(status: str, display_text: Optional[str] = None) -> dict:
         'draft': {'bg': '#f97316', 'text': '#ffffff'},      # Orange
         'open': {'bg': '#0dcaf0', 'text': '#000000'},       # Info/Cyan
         'pending': {'bg': '#ffc107', 'text': '#000000'},    # Yellow
+        'awaiting': {'bg': '#0dcaf0', 'text': '#000000'},   # Info/Cyan
         'in_progress': {'bg': '#ffc107', 'text': '#000000'},# Yellow
         'completed': {'bg': '#198754', 'text': '#ffffff'},   # Green
         'active': {'bg': '#198754', 'text': '#ffffff'},      # Green

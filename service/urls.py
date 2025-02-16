@@ -1,14 +1,7 @@
 from django.urls import path
-from .views import workorder_views
-
-app_name = 'service'
+from .views.filter_views import filter_instruments, filter_entitlements
 
 urlpatterns = [
-    path('workorders/', 
-         workorder_views.WorkOrderListView.as_view(), 
-         name='workorder-list'),
-    
-    path('workorders/<int:pk>/', 
-         workorder_views.WorkOrderDetailView.as_view(), 
-         name='workorder-detail'),
+    path('admin/service/instrument/ajax/filter/', filter_instruments, name='filter_instruments'),
+    path('admin/service/entitlement/ajax/filter/', filter_entitlements, name='filter_entitlements'),
 ]

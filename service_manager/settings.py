@@ -121,14 +121,18 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+# Static files configuration
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Add your service app's static directory to STATICFILES_DIRS
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'service/static'),
+    os.path.join(BASE_DIR, 'service', 'static'),
 ]
 
+# Use ManifestStaticFilesStorage for better caching
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
+# Define the order of static file finders
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',

@@ -93,10 +93,19 @@ class InstrumentInline(admin.TabularInline):
 class ServiceAgreementInline(admin.TabularInline):
     model = ServiceAgreement
     extra = 0
-    fields = ('start_date', 'end_date', 'status')
-    readonly_fields = ('status',)
+    fields = ('start_date', 'end_date', 'status', 'actions')
+    readonly_fields = ('status', 'actions')
 
-@admin.register(Customer)
+    def actions(self, obj):
+        if obj.pk:  # Only show actions for saved agreements
+            view_url = reverse('admin:service_serviceagreement_change', args=[obj.pk])
+            return format_html(
+                '<a href="{}" class="button">View Details</a>',
+                view_url
+            )
+        return ""
+    actions.short_description = "Actions"
+
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('name', 'website', 'agreement_status', 'instrument_count', 'contact_count', 'recent_service')
     search_fields = ('name', 'website', 'address')
@@ -189,15 +198,8 @@ class CustomerAdmin(admin.ModelAdmin):
                 '<tbody>'
             ])
 
-            status_colors = {
-                'open': '#ffc107',      # yellow
-                'in_progress': '#17a2b8',  # blue
-                'completed': '#28a745',    # green
-                'cancelled': '#dc3545'     # red
-            }
-
             for wo in recent_work_orders:
-                status_color = status_colors.get(wo.status, '#6c757d')  # default gray
+                status_badge = get_status_badge(wo.status)
                 wo_url = reverse('admin:service_workorder_change', args=[wo.pk])
                 new_sr_url = reverse('admin:service_servicereport_add')
                 
@@ -221,13 +223,12 @@ class CustomerAdmin(admin.ModelAdmin):
                 html.append(
                     f'<tr style="border: 1px solid #ddd;">'
                     f'<td style="padding: 8px;">WO-{wo.pk}</td>'
-                    f'<td style="padding: 8px;"><span style="background-color: {status_color}; '
-                    f'color: white; padding: 3px 8px; border-radius: 3px;">{wo.get_status_display()}</span></td>'
+                    f'<td style="padding: 8px;">{status_badge}</td>'
                     f'<td style="padding: 8px;">{wo.instrument}</td>'
                     f'<td style="padding: 8px;">{description}</td>'
                     f'<td style="padding: 8px;">'
-                    f'<a href="{wo_url}" class="button" style="margin-right: 5px;">View WO</a>'
-                    f'<a href="{new_sr_url}?work_order={wo.pk}" class="button" style="margin-right: 5px;">New SR</a>'
+                    f'<a href="{wo_url}" class="button" style="margin-right: 5px;" target="_blank">View WO</a>'
+                    f'<a href="{new_sr_url}?work_order={wo.pk}" class="button" style="margin-right: 5px;" target="_blank">New SR</a>'
                     f'{sr_html}'
                     f'</td>'
                     f'</tr>'
@@ -246,20 +247,14 @@ class CustomerAdmin(admin.ModelAdmin):
                 html.append(f'<p><strong>Total Agreements:</strong> {agreements_count}</p>')
                 
                 for agreement in agreements:
-                    status_colors = {
-                        'active': '#28a745',
-                        'expired': '#dc3545',
-                        'draft': '#ffc107'
-                    }
-                    status_color = status_colors.get(agreement.status, '#6c757d')
+                    status_badge = get_status_badge(agreement.status)
                     agreement_url = reverse('admin:service_serviceagreement_change', args=[agreement.pk])
                     
                     html.extend([
                         '<div style="margin: 10px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">',
                         f'<h3 style="margin: 0 0 10px 0;">'
                         f'<a href="{agreement_url}" style="text-decoration: none;">Agreement #{agreement.id}</a></h3>',
-                        f'<p><strong>Status:</strong> <span style="color: {status_color};">'
-                        f'{agreement.get_status_display()}</span></p>',
+                        f'<p><strong>Status:</strong> {status_badge}</p>',
                         f'<p><strong>Period:</strong> {agreement.start_date} to {agreement.end_date}</p>',
                     ])
 
@@ -300,13 +295,9 @@ class CustomerAdmin(admin.ModelAdmin):
     def agreement_status(self, obj):
         active_agreement = obj.agreements.filter(status='active').first()
         if active_agreement:
-            return format_html(
-                '<span style="color: #28a745;">Active</span>'
-            )
-        return format_html(
-            '<span style="color: #dc3545;">No Active Agreement</span>'
-        )
-    agreement_status.short_description = "Agreement Status"
+            return get_status_badge('active', 'Active')
+        return get_status_badge('expired', 'No Active Agreement')
+    agreement_status.short_description = 'Agreement Status'
 
     def instrument_count(self, obj):
         return obj.total_instruments
