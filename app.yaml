@@ -31,7 +31,7 @@ services:
         value: ${DJANGO_SECRET_KEY}
       - key: ALLOWED_HOST
         scope: RUN_TIME
-        value: ${APP_DOMAIN}
+        value: "svcflo.com,stingray-app-rjzyb.ondigitalocean.app"
 
       # Database connection (using bindable variables)
       - key: POSTGRES_DB

@@ -4,10 +4,14 @@ from .settings import *
 # Debug should be False in production
 DEBUG = False
 
-# Allow DigitalOcean App Platform URLs
+# Allow DigitalOcean App Platform URLs and custom domain
 ALLOWED_HOSTS = [
-    '.ondigitalocean.app',  # Allow all DigitalOcean App Platform URLs
-    os.getenv('ALLOWED_HOST', ''),  # Get from environment variable
+    '*',  # Temporarily allow all hosts for debugging
+    '.ondigitalocean.app',
+    'stingray-app-rjzyb.ondigitalocean.app',
+    'svcflo.com',
+    'www.svcflo.com',
+    os.getenv('ALLOWED_HOST', ''),
 ]
 
 # Configure database
