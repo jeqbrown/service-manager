@@ -11,16 +11,20 @@ __pycache__/
 .env
 .env.*
 
-# Database
-db.sqlite3
+# Database files
+*.db
+*.sqlite3
 
-# Static and media files
-/media/
-/staticfiles/
+# Log files
+*.log
 
 # System files
 .DS_Store
 Thumbs.db
+
+# Static and media files
+/media/
+/staticfiles/
 
 # Local development files
 local_settings.py
