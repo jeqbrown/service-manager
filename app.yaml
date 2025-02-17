@@ -29,9 +29,9 @@ services:
         scope: RUN_TIME
         type: SECRET
         value: ${DJANGO_SECRET_KEY}
-      - key: ALLOWED_HOSTS
+      - key: ALLOWED_HOST
         scope: RUN_TIME
-        value: ${APP_DOMAIN},${_self.PUBLIC_URL}
+        value: ${APP_DOMAIN}
 
       # Database connection (using bindable variables)
       - key: POSTGRES_DB

@@ -4,7 +4,7 @@ from .settings import *
 # Debug should be False in production
 DEBUG = False
 
-# Allow DigitalOcean App Platform URL
+# Allow DigitalOcean App Platform URLs
 ALLOWED_HOSTS = [
     '.ondigitalocean.app',  # Allow all DigitalOcean App Platform URLs
     os.getenv('ALLOWED_HOST', ''),  # Get from environment variable
@@ -26,14 +26,13 @@ DATABASES = {
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = '/static/'
 
-# Add whitenoise middleware for static files
-MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-# Security settings
+# Security settings for production
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+
+# Add whitenoise middleware for static files
+MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
