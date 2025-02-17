@@ -6,11 +6,7 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    # Always use platform_settings.py when on Railway
-    if os.getenv('RAILWAY_ENVIRONMENT'):
-        os.environ['DJANGO_SETTINGS_MODULE'] = 'service_manager.platform_settings'
-    else:
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'service_manager.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'service_manager.settings')
     
     try:
         from django.core.management import execute_from_command_line
