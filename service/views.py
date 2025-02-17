@@ -1,5 +1,5 @@
 from django.views.generic import TemplateView
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import F
 from .models import Instrument, Entitlement
@@ -38,3 +38,7 @@ def filter_entitlements(request):
             'remaining': e['remaining']
         } for e in entitlements], safe=False)
     return JsonResponse([], safe=False)
+
+def health_check(request):
+    """Health check endpoint for App Platform"""
+    return HttpResponse("OK")
