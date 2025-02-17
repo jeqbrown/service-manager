@@ -6,9 +6,9 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    # Use platform_settings.py when deployed to DigitalOcean
-    if os.getenv('DIGITALOCEAN_APP_PLATFORM', False):
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'service_manager.platform_settings')
+    # Always use platform_settings.py when on Railway
+    if os.getenv('RAILWAY_ENVIRONMENT'):
+        os.environ['DJANGO_SETTINGS_MODULE'] = 'service_manager.platform_settings'
     else:
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'service_manager.settings')
     
