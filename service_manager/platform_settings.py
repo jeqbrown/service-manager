@@ -6,11 +6,12 @@ from .settings import *
 DEBUG = False
 
 # Ensure ALLOWED_HOSTS is properly set
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
-if os.getenv('APP_DOMAIN'):
-    ALLOWED_HOSTS.append(os.getenv('APP_DOMAIN'))
-if os.getenv('PUBLIC_URL'):
-    ALLOWED_HOSTS.append(os.getenv('PUBLIC_URL'))
+ALLOWED_HOSTS = [
+    'web-production-d9ef.up.railway.app',
+    '.railway.app',
+    'localhost',
+    '127.0.0.1',
+]
 
 # Database configuration
 DATABASES = {
@@ -21,27 +22,16 @@ DATABASES = {
     )
 }
 
-# If no DATABASE_URL is set, use these default settings
-if 'default' not in DATABASES:
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'service_manager_db'),
-        'USER': os.getenv('DB_USER', 'service_manager_user'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
-    }
+# Static files configuration
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Security settings
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = False  # Set to True if you have SSL configured
+SESSION_COOKIE_SECURE = False  # Set to True if you have SSL configured
+CSRF_COOKIE_SECURE = False  # Set to True if you have SSL configured
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-
-# Static files
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
 # Installed apps
 INSTALLED_APPS = [
