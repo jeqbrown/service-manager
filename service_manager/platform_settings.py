@@ -3,20 +3,28 @@ import dj_database_url
 from .settings import *
 
 # Debug should be False in production
-DEBUG = False
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+# Get the Railway-provided URL
+RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL', '')
+RAILWAY_PUBLIC_DOMAIN = os.getenv('RAILWAY_PUBLIC_DOMAIN', '')
 
 # Ensure ALLOWED_HOSTS is properly set
 ALLOWED_HOSTS = [
+    RAILWAY_STATIC_URL,
+    RAILWAY_PUBLIC_DOMAIN,
     'web-production-d9ef.up.railway.app',
     '.railway.app',
     'localhost',
     '127.0.0.1',
 ]
 
-# Database configuration
+# Remove empty strings from ALLOWED_HOSTS
+ALLOWED_HOSTS = [host for host in ALLOWED_HOSTS if host]
+
+# Database configuration - use Railway's provided DATABASE_URL
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL'),
         conn_max_age=600,
         conn_health_checks=True,
     )
@@ -25,6 +33,10 @@ DATABASES = {
 # Static files configuration
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Whitenoise for static files
+MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Security settings
 SECURE_SSL_REDIRECT = False  # Set to True if you have SSL configured
