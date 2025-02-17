@@ -7,6 +7,10 @@ DEBUG = False
 
 # Ensure ALLOWED_HOSTS is properly set
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+if os.getenv('APP_DOMAIN'):
+    ALLOWED_HOSTS.append(os.getenv('APP_DOMAIN'))
+if os.getenv('PUBLIC_URL'):
+    ALLOWED_HOSTS.append(os.getenv('PUBLIC_URL'))
 
 # Database configuration
 DATABASES = {
