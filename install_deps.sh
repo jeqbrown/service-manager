@@ -1,0 +1,1 @@
+pip install python-dotenv==1.0.0
