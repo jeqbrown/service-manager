@@ -1,59 +1,51 @@
 import os
+import dj_database_url
 from .settings import *
 
 # Debug should be False in production
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+DEBUG = False
 
-# Get allowed hosts from environment and split into list
-allowed_hosts_env = os.getenv('ALLOWED_HOST', '').split(',')
+# Ensure ALLOWED_HOSTS is properly set
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
-# Allow DigitalOcean App Platform URLs and custom domain
-ALLOWED_HOSTS = [
-    'stingray-app-rjzyb.ondigitalocean.app',
-    'svcflo.com',
-    'www.svcflo.com',
-] + allowed_hosts_env
-
-# Print environment variables for debugging (will show in DigitalOcean logs)
-print("Database Environment Variables:")
-print(f"POSTGRES_DB: {os.getenv('POSTGRES_DB', 'NOT SET')}")
-print(f"POSTGRES_USER: {os.getenv('POSTGRES_USER', 'NOT SET')}")
-print(f"POSTGRES_HOST: {os.getenv('POSTGRES_HOST', 'NOT SET')}")
-print(f"POSTGRES_PORT: {os.getenv('POSTGRES_PORT', 'NOT SET')}")
-
-# Configure database with fallback values
+# Database configuration
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB'),
-        'USER': os.getenv('POSTGRES_USER'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
-        'HOST': os.getenv('POSTGRES_HOST'),
-        'PORT': os.getenv('POSTGRES_PORT', '5432'),
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
-# Verify database configuration
-if not all([DATABASES['default']['NAME'],
-           DATABASES['default']['USER'],
-           DATABASES['default']['PASSWORD'],
-           DATABASES['default']['HOST']]):
-    raise ImproperlyConfigured(
-        "Database configuration is incomplete. Please check your environment variables: "
-        "POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST"
-    )
+# If no DATABASE_URL is set, use these default settings
+if 'default' not in DATABASES:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'service_manager_db'),
+        'USER': os.getenv('DB_USER', 'service_manager_user'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+    }
 
-# Static files configuration
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATIC_URL = '/static/'
-
-# Security settings for production
+# Security settings
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# Add whitenoise middleware for static files
-MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Static files
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
+# Installed apps
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'service',
+]
