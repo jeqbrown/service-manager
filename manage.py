@@ -6,7 +6,12 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'service_manager.settings')
+    # Use platform_settings.py when deployed to DigitalOcean
+    if os.getenv('DIGITALOCEAN_APP_PLATFORM', False):
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'service_manager.platform_settings')
+    else:
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'service_manager.settings')
+    
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
