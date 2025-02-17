@@ -4,8 +4,11 @@ services:
     git:
       repo: "https://github.com/jeqbrown/service-manager"
       branch: main
-    build_command: pip install -r requirements.txt
-    run_command: gunicorn service_manager.wsgi:application
+    build_command: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+    run_command: gunicorn service_manager.wsgi:application --bind=0.0.0.0:8000
     instance_size_slug: basic-xxs
     instance_count: 1
     
@@ -17,8 +20,9 @@ services:
       - key: DISABLE_COLLECTSTATIC
         scope: BUILD_TIME
         value: "0"
-
-      # Runtime environment variables
+      - key: PYTHONUNBUFFERED
+        scope: RUN_TIME
+        value: "1"
       - key: DJANGO_SETTINGS_MODULE
         scope: RUN_TIME
         value: "service_manager.platform_settings"
@@ -31,40 +35,26 @@ services:
         value: ${DJANGO_SECRET_KEY}
       - key: ALLOWED_HOST
         scope: RUN_TIME
-        value: "svcflo.com,stingray-app-rjzyb.ondigitalocean.app"
+        value: "${APP_DOMAIN},${PUBLIC_URL}"
 
-      # Database connection (using bindable variables)
-      - key: POSTGRES_DB
+    # Database configuration
+      - key: DATABASE_URL
         scope: RUN_TIME
-        value: ${db.DATABASE}
-      - key: POSTGRES_USER
-        scope: RUN_TIME
-        value: ${db.USERNAME}
-      - key: POSTGRES_PASSWORD
-        scope: RUN_TIME
-        type: SECRET
-        value: ${db.PASSWORD}
-      - key: POSTGRES_HOST
-        scope: RUN_TIME
-        value: ${db.HOSTNAME}
-      - key: POSTGRES_PORT
-        scope: RUN_TIME
-        value: ${db.PORT}
-
-    # HTTP port configuration
+        value: ${db.DATABASE_URL}
+      
     http_port: 8000
     
-    # Health check configuration
     health_check:
       http_path: /health/
       initial_delay_seconds: 30
       period_seconds: 60
+      timeout_seconds: 10
+      success_threshold: 1
+      failure_threshold: 3
 
 databases:
-  - name: db
-    engine: PG
-    production: true
-    cluster_name: service-manager-db
+  - engine: PG
+    name: db
     version: "14"
 
 static_sites:
