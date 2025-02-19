@@ -1,6 +1,6 @@
 # Service Manager
 
-A streamlined service management solution built with Django that helps track service activities, customer interactions, and equipment inventory.
+"Ordo ab Chao" - Order from Chaos. Service Manager transforms the typically chaotic world of service operations into a streamlined, systematic process. Born from the recognition that service organizations often struggle with scattered paperwork, disconnected processes, and ad-hoc tracking methods, this application brings structure and clarity to every aspect of service management. From work orders to customer interactions, from equipment tracking to service agreements, Service Manager creates order from disorder, enabling service teams to focus on what they do best - delivering exceptional service.
 
 ## Features
 
