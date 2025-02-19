@@ -5,13 +5,220 @@
 
 {% block content %}
 <div class="flex flex-col items-center justify-center min-h-screen">
-    <h1 class="text-7xl font-bold mb-12 text-white drop-shadow-lg">Service Manager</h1>
+    <h1 class="text-8xl font-bold mb-8 text-white drop-shadow-lg relative" aria-label="Service Manager">
+        <span class="scattered-text opacity-0">Service Manager</span>
+        <span class="scattered-text-container absolute top-0 left-0 right-0 whitespace-nowrap"></span>
+    </h1>
     
+    <div class="tagline opacity-0 transform translate-y-4 transition-all duration-700 ease-out mb-12">
+        <h2 class="text-2xl text-white font-serif italic tracking-wider">"Ordo ab Chao"</h2>
+    </div>
+
     <a href="{% url 'admin:index' %}" 
-       class="px-10 py-5 bg-white text-blue-900 text-xl font-semibold rounded-lg 
+       class="action-button opacity-0 px-10 py-5 bg-white text-blue-900 text-xl font-semibold rounded-lg 
               hover:bg-blue-50 transition-all duration-300 transform hover:scale-105 
               shadow-lg hover:shadow-xl">
         Let's get to work!
     </a>
 </div>
+
+<style>
+.scattered-text {
+    visibility: hidden;
+}
+
+.scattered-text-container {
+    display: inline-block;
+    white-space: nowrap;
+    padding: 0 20px;  /* Add some padding to prevent glow clipping */
+}
+
+.letter {
+    display: inline-block;
+    position: absolute;
+    opacity: 0;
+    white-space: pre;
+    transform: translate(var(--x), var(--y)) rotate(var(--rotate)) scale(var(--scale));
+}
+
+.letter.animated {
+    transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.8s ease-in;
+    opacity: 1;
+    transform: translate(var(--final-x), var(--final-y)) rotate(0deg) scale(1);
+}
+
+@keyframes swirl {
+    0% { transform: translate(var(--x), var(--y)) rotate(var(--rotate)) scale(var(--scale)); }
+    30% { transform: translate(var(--mid-x), var(--mid-y)) rotate(calc(var(--rotate) * -0.5)) scale(var(--mid-scale)); }
+    100% { transform: translate(var(--final-x), var(--final-y)) rotate(0deg) scale(1); }
+}
+
+.letter.animated {
+    animation: 
+        swirl 3s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+        text-glow 3s ease-in-out infinite;
+    animation-delay: 0s, 3s;  /* Start glow after swirl completes */
+}
+
+@keyframes text-glow {
+    0%, 100% {
+        text-shadow: 
+            0 0 30px rgba(255, 255, 255, 0.3),
+            0 0 60px rgba(59, 130, 246, 0.3);  /* blue-500 */
+    }
+    50% {
+        text-shadow: 
+            0 0 40px rgba(255, 255, 255, 0.4),
+            0 0 80px rgba(59, 130, 246, 0.4);  /* blue-500 */
+    }
+}
+
+.tagline.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@keyframes button-breathe {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 
+                   0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    50% {
+        transform: scale(1.03);
+        box-shadow: 0 15px 20px -3px rgba(0, 0, 0, 0.15), 
+                   0 8px 10px -2px rgba(0, 0, 0, 0.1),
+                   0 0 15px rgba(255, 255, 255, 0.2);
+    }
+}
+
+@keyframes fade-in-pulse {
+    0% { 
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.action-button.animate {
+    animation: 
+        fade-in-pulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+        button-breathe 4s ease-in-out infinite;
+    animation-delay: 0s, 1.5s;  /* Start breathing after fade-in completes */
+}
+
+/* Override hover during initial animation */
+.action-button.animate:hover {
+    transform: none;
+}
+
+/* Re-enable hover effects after animations complete */
+.action-button {
+    transition: all 0.3s ease;
+}
+
+.action-button:hover {
+    transform: scale(1.05);
+    background-color: rgb(239, 246, 255);  /* blue-50 */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 
+                0 10px 10px -5px rgba(0, 0, 0, 0.1),
+                0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Enhance the drop shadow for better contrast with glow */
+h1 {
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const template = document.querySelector('.scattered-text');
+    const container = document.querySelector('.scattered-text-container');
+    const tagline = document.querySelector('.tagline');
+    const actionButton = document.querySelector('.action-button');
+    const text = template.textContent;
+    
+    const containerRect = container.getBoundingClientRect();
+    const measureContainer = document.createElement('div');
+    measureContainer.style.display = 'inline-block';
+    measureContainer.style.whiteSpace = 'nowrap';
+    measureContainer.style.visibility = 'hidden';
+    container.appendChild(measureContainer);
+    
+    const measureSpans = text.split('').map(char => {
+        const span = document.createElement('span');
+        span.textContent = char === ' ' ? '\u00A0' : char;
+        span.style.display = 'inline-block';
+        measureContainer.appendChild(span);
+        return span;
+    });
+    
+    const positions = measureSpans.map(span => {
+        const rect = span.getBoundingClientRect();
+        return {
+            left: rect.left - containerRect.left,
+            top: rect.top - containerRect.top
+        };
+    });
+    
+    measureContainer.remove();
+    
+    const letters = text.split('').map((char, i) => {
+        const span = document.createElement('span');
+        span.textContent = char === ' ' ? '\u00A0' : char;
+        span.className = 'letter';
+        
+        // More dramatic initial positions
+        const angle = (Math.random() * Math.PI * 2); // Random angle
+        const distance = 300 + (Math.random() * 500); // Random distance from center
+        const randomX = Math.cos(angle) * distance;
+        const randomY = Math.sin(angle) * distance;
+        const randomRotate = (Math.random() * 1080) - 540; // -540° to +540°
+        const randomScale = 0.5 + (Math.random() * 2); // 0.5 to 2.5
+
+        // Midpoint values for swirl effect
+        const midDistance = distance * 0.4;
+        const midAngle = angle + (Math.PI / 2); // 90° offset for swirl
+        const midX = Math.cos(midAngle) * midDistance;
+        const midY = Math.sin(midAngle) * midDistance;
+        
+        span.style.setProperty('--x', `${randomX}px`);
+        span.style.setProperty('--y', `${randomY}px`);
+        span.style.setProperty('--mid-x', `${midX}px`);
+        span.style.setProperty('--mid-y', `${midY}px`);
+        span.style.setProperty('--rotate', `${randomRotate}deg`);
+        span.style.setProperty('--scale', randomScale);
+        span.style.setProperty('--mid-scale', (randomScale + 1) / 2);
+        span.style.setProperty('--final-x', `${positions[i].left}px`);
+        span.style.setProperty('--final-y', `${positions[i].top}px`);
+        
+        return span;
+    });
+    
+    letters.forEach(letter => container.appendChild(letter));
+    
+    setTimeout(() => {
+        letters.forEach((letter, index) => {
+            setTimeout(() => {
+                letter.classList.add('animated');
+                letter.style.opacity = 1;
+                
+                if (index === letters.length - 1) {
+                    setTimeout(() => {
+                        tagline.classList.add('visible');
+                        // Add button animation after tagline appears
+                        setTimeout(() => {
+                            actionButton.classList.add('animate');
+                        }, 700);
+                    }, 1000);
+                }
+            }, index * 100);  // increased from 50 to 100
+        });
+    }, 500);
+});
+</script>
 {% endblock %}
