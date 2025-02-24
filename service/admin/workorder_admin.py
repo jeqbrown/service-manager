@@ -13,7 +13,26 @@ from ..models.agreement import Entitlement
 from ..models.instrument import Instrument
 from ..utils.status_colors import get_status_badge
 
+class UserModelChoiceField(ModelChoiceField):
+    def label_from_instance(self, obj):
+        return obj.get_full_name() or obj.username
+
+class WorkOrderForm(ModelForm):
+    assigned_to = UserModelChoiceField(
+        queryset=User.objects.all().order_by('first_name', 'last_name'),
+        required=False
+    )
+
+    class Meta:
+        model = WorkOrder
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Rest of your initialization code...
+
 class WorkOrderAdmin(admin.ModelAdmin):
+    form = WorkOrderForm
     list_display = ('__str__', 'customer', 'instrument', 'status_badge', 'assigned_to', 'created_at')
     list_filter = ('status', 'customer', 'assigned_to', 'created_at')
     search_fields = ('customer__name', 'instrument__serial_number', 'description')

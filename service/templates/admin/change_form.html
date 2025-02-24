@@ -5,8 +5,13 @@
     {{ block.super }}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Remove popup behavior from all add buttons
-            document.querySelectorAll('.add-another, .related-lookup').forEach(function(el) {
+            // Only modify non-inline add buttons
+            document.querySelectorAll('form#instrument_form .add-another, form#instrument_form .related-lookup').forEach(function(el) {
+                // Skip if the element is within an inline form
+                if (el.closest('.inline-related')) {
+                    return;
+                }
+                
                 el.removeAttribute('onclick');
                 el.classList.remove('related-lookup');
                 el.classList.remove('add-another');
@@ -20,21 +25,6 @@
                 el.removeAttribute('target');
                 el.removeAttribute('onclick');
             });
-
-            // Override the RelatedObjectLookups.js functions
-            if (typeof window.showRelatedObjectLookupPopup !== 'undefined') {
-                window.showRelatedObjectLookupPopup = function(triggeringLink) {
-                    window.location.href = triggeringLink.href;
-                    return false;
-                };
-            }
-            
-            if (typeof window.showAddAnotherPopup !== 'undefined') {
-                window.showAddAnotherPopup = function(triggeringLink) {
-                    window.location.href = triggeringLink.href;
-                    return false;
-                };
-            }
         });
     </script>
 {% endblock %}

@@ -10,6 +10,7 @@ __pycache__/
 # Environment variables
 .env
 .env.*
+!.env.example
 
 # Database files
 *.db
@@ -29,7 +30,5 @@ Thumbs.db
 # Local development files
 local_settings.py
 
-# Backup files
-/backups/
-*.bundle
-*.tar.gz
+# Docker
+docker-compose.override.yml

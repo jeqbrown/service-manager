@@ -10,8 +10,12 @@ class InstrumentType(models.Model):
         return self.name
 
 class Instrument(models.Model):
+    instrument_type = models.ForeignKey(
+        InstrumentType,
+        on_delete=models.PROTECT,
+        related_name='instruments'
+    )
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='instruments')
-    instrument_type = models.ForeignKey(InstrumentType, on_delete=models.PROTECT)
     serial_number = models.CharField(max_length=50, unique=True)
     installation_date = models.DateField()
     assigned_to = models.ForeignKey(

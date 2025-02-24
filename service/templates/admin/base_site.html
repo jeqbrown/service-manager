@@ -13,20 +13,156 @@
     <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
     <link rel="alternate icon" type="image/x-icon" href="{% static 'favicon.ico' %}">
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Remove popup behavior but keep icon classes
-            document.querySelectorAll('.add-another, .related-lookup, .change-related').forEach(function(el) {
-                el.removeAttribute('onclick');
-                if (el.tagName === 'A') {
+        window.showRelatedObjectPopup = function(triggeringLink) {
+            if (triggeringLink.closest('.inline-related')) {
+                const href = triggeringLink.href;
+                const name = triggeringLink.id.replace(/^lookup_/, '');
+                const win = window.open(href, name, 'height=500,width=800,resizable=yes,scrollbars=yes');
+                win.focus();
+                return false;
+            }
+            window.location.href = triggeringLink.href;
+            return false;
+        };
+
+        window.dismissAddRelatedObjectPopup = function(win, newId, newRepr) {
+            console.log('Popup URL:', win.location.pathname);
+            // Parse the window name to get the actual field name
+            const name = win.name.replace('add_id_', '');
+            console.log('Parsed field name:', name);
+            
+            // The select element we need to update should be in the opener window (parent)
+            // Try both with and without 'id_' prefix, handling inline formset pattern like 'instruments-0-instrument_type'
+            let select = win.opener.document.getElementById('id_' + name);
+            if (!select) {
+                select = win.opener.document.getElementById(name);
+            }
+            
+            if (select) {
+                // Set proper attributes for accessibility
+                select.setAttribute('autocomplete', 'new-password');  // Prevent unwanted autofill
+                select.setAttribute('data-context', 'available-source');
+                
+                // Get or create associated label
+                const labelId = `label_${select.id}`;
+                let label = win.opener.document.querySelector(`label[for="${select.id}"]`);
+                if (!label) {
+                    // For inline formsets, find the table header cell
+                    const tableCell = select.closest('td');
+                    if (tableCell) {
+                        const headerIndex = Array.from(tableCell.parentElement.children).indexOf(tableCell);
+                        const headerRow = tableCell.closest('table').querySelector('thead tr');
+                        if (headerRow) {
+                            const headerCell = headerRow.children[headerIndex];
+                            if (headerCell) {
+                                headerCell.setAttribute('scope', 'col');
+                                headerCell.setAttribute('id', labelId);
+                                select.setAttribute('aria-labelledby', labelId);
+                            }
+                        }
+                    }
+                }
+                
+                // Get the model name from the popup URL
+                const pathParts = win.location.pathname.split('/');
+                const modelName = pathParts[3]; // 'instrumenttype'
+                console.log('Model name:', modelName);
+                
+                const url = `/admin/service/${modelName}/${newId}/get_option/`;  // Changed URL
+                console.log('Ajax URL:', url);
+
+                // Use the opener's jQuery to make the Ajax request
+                win.opener.django.jQuery.ajax({
+                    url: url,
+                    method: 'GET',
+                    success: function(data) {
+                        console.log('Ajax success:', data);
+                        // Create new option with the label from the server response
+                        const option = new Option(data.label, data.value, true, true);  // Set both selected and defaultSelected
+                        select.add(option);
+                        // Remove any previous options with the same value
+                        Array.from(select.options).forEach((opt, index) => {
+                            if (opt.value === data.value && opt !== option) {
+                                select.remove(index);
+                            }
+                        });
+                        // Set the value and trigger change
+                        select.value = data.value;
+                        win.opener.django.jQuery(select).trigger('change');
+                        win.close();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Ajax error:', status, error);
+                        // Fallback: use newRepr from the popup
+                        const option = new Option(newRepr, newId, true, true);
+                        select.add(option);
+                        select.value = newId;
+                        win.opener.django.jQuery(select).trigger('change');
+                        win.close();
+                    }
+                });
+            } else {
+                console.error('Select element not found:', name);
+                win.close();
+            }
+        };
+
+        window.dismissRelatedLookupPopup = function(win, chosenId) {
+            const name = win.name;
+            const elem = document.getElementById(name);
+            if (elem) {
+                const elemName = elem.name;
+                const select = document.getElementById('id_' + elemName);
+                if (select) {
+                    select.value = chosenId;
+                    django.jQuery(select).trigger('change');
+                }
+            }
+            win.close();
+        };
+
+        window.updateRelatedObjectLinks = function(triggeringSelect) {
+            const $select = django.jQuery(triggeringSelect);
+            const value = $select.val();
+            const namePrefix = triggeringSelect.id.replace(/^id_/, '');
+            const links = document.getElementsByClassName('change-related-' + namePrefix);
+            const addLinks = document.getElementsByClassName('add-related-' + namePrefix);
+            const deleteLinks = document.getElementsByClassName('delete-related-' + namePrefix);
+
+            if (!value) {
+                Array.from(links).forEach(link => link.style.display = 'none');
+                Array.from(deleteLinks).forEach(link => link.style.display = 'none');
+            } else {
+                Array.from(links).forEach(link => {
+                    link.href = link.href.replace(/object_id=\d+/, 'object_id=' + value);
+                    link.style.display = '';
+                });
+                Array.from(deleteLinks).forEach(link => link.style.display = '');
+            }
+            django.jQuery(document).trigger('django:update-related');
+        };
+    </script>
+{% endblock %}
+
+{% block footer %}
+    {{ block.super }}
+    <script>
+        // Wait for Django admin JS to fully load
+        window.addEventListener('load', function() {
+            // Only modify non-inline links
+            document.querySelectorAll('a:not(.inline-related a)').forEach(function(el) {
+                if (!el.closest('.inline-related') && 
+                    !el.classList.contains('add-another') && 
+                    !el.classList.contains('related-lookup')) {
+                    el.removeAttribute('onclick');
                     el.setAttribute('target', '_self');
                 }
             });
 
-            // Override the RelatedObjectLookups.js functions
-            window.showRelatedObjectLookupPopup = function(triggeringLink) {
-                window.location.href = triggeringLink.href;
-                return false;
-            };
+            // Ensure all select fields trigger updates properly
+            django.jQuery('.related-widget-wrapper select').each(function() {
+                django.jQuery(this).trigger('change');
+            });
         });
     </script>
 {% endblock %}

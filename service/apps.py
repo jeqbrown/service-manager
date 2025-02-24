@@ -33,12 +33,9 @@ class ServiceConfig(AppConfig):
         except:
             pass
 
-        # Register User with the default UserAdmin
+        # Register all models with the custom admin site
         admin_site.register(User, UserAdmin)
-        # Register Group with the default GroupAdmin
         admin_site.register(Group, GroupAdmin)
-
-        # Register all other models
         admin_site.register(Customer, CustomerAdmin)
         admin_site.register(Instrument, InstrumentAdmin)
         admin_site.register(InstrumentType, InstrumentTypeAdmin)
