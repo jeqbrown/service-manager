@@ -163,12 +163,16 @@ git merge "$BACKUP_BRANCH"
 echo "Pushing changes to main branch..."
 git push origin "$MAIN_BRANCH"
 
+# Clean up backup branch after successful merge
+echo "Cleaning up backup branch..."
+git branch -d "$BACKUP_BRANCH"
+git push origin --delete "$BACKUP_BRANCH"
+
 # Restore local .env file if it was backed up
 if [ -f "${LOCAL_ENV_FILE}.backup" ]; then
     echo "Restoring local .env file..."
     mv "${LOCAL_ENV_FILE}.backup" "$LOCAL_ENV_FILE"
 fi
-
 
 # Add to deploy_changes.sh before the final echo statements
 echo "Would you like to transfer the setup and update scripts to your server? (y/n): "
@@ -187,7 +191,6 @@ if [[ "$transfer_scripts" == "y" ]]; then
     
     echo "Scripts transferred successfully to /root/ directory on your server."
 fi
-
 
 echo "Deployment complete! Your changes have been pushed to GitHub."
 echo "The DigitalOcean droplet will need to pull these changes to apply them."
