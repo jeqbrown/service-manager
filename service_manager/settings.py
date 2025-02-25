@@ -25,6 +25,19 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
+# CSRF and CORS settings
+CSRF_TRUSTED_ORIGINS = [
+    'https://svcflo.com',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
+
+# If using HTTPS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 # Static files configuration - Move these settings before INSTALLED_APPS
 STATIC_URL = '/static/'  # Make sure this is before INSTALLED_APPS
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
