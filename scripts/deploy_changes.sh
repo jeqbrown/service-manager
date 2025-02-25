@@ -174,14 +174,15 @@ if [ -f "${LOCAL_ENV_FILE}.backup" ]; then
     mv "${LOCAL_ENV_FILE}.backup" "$LOCAL_ENV_FILE"
 fi
 
-# Add to deploy_changes.sh before the final echo statements
-echo "Would you like to transfer the setup and update scripts to your server? (y/n): "
-read transfer_scripts
-if [[ "$transfer_scripts" == "y" ]]; then
+# Server deployment section
+echo "Would you like to deploy changes to your server? (y/n): "
+read deploy_to_server
+if [[ "$deploy_to_server" == "y" ]]; then
     read -p "Enter your server IP or hostname: " server_ip
     read -p "Enter the SSH username (default: root): " ssh_user
     ssh_user=${ssh_user:-root}
     
+    # Transfer scripts to server
     echo "Transferring scripts to ${ssh_user}@${server_ip}..."
     scp scripts/setup_droplet.sh ${ssh_user}@${server_ip}:/root/
     scp scripts/update_droplet.sh ${ssh_user}@${server_ip}:/root/
@@ -189,16 +190,63 @@ if [[ "$transfer_scripts" == "y" ]]; then
     echo "Making scripts executable on the server..."
     ssh ${ssh_user}@${server_ip} "chmod +x /root/setup_droplet.sh /root/update_droplet.sh"
     
+    # Ask which deployment method to use
+    echo "How would you like to deploy to the server?"
+    echo "1) Run update_droplet.sh (quick update, preserves data)"
+    echo "2) Run setup_droplet.sh (full reinstall, may reset data)"
+    echo "3) Don't run any scripts (manual deployment later)"
+    read -p "Enter your choice (1-3): " deployment_choice
+    
+    case $deployment_choice in
+        1)
+            echo "Running update script on server..."
+            ssh ${ssh_user}@${server_ip} "cd /root && ./update_droplet.sh"
+            echo "Update completed successfully!"
+            ;;
+        2)
+            echo "WARNING: Running setup script will perform a full reinstall."
+            read -p "Are you sure you want to continue? (y/n): " confirm_setup
+            if [[ "$confirm_setup" == "y" ]]; then
+                echo "Running setup script on server..."
+                ssh ${ssh_user}@${server_ip} "cd /root && ./setup_droplet.sh"
+                echo "Setup completed successfully!"
+            else
+                echo "Setup cancelled."
+            fi
+            ;;
+        3)
+            echo "Scripts transferred to server but not executed."
+            echo "You can run them manually by SSH'ing into the server and running:"
+            echo "  cd /root && ./update_droplet.sh"
+            echo "  or"
+            echo "  cd /root && ./setup_droplet.sh"
+            ;;
+        *)
+            echo "Invalid choice. Scripts transferred but not executed."
+            ;;
+    esac
+    
     echo "Scripts transferred successfully to /root/ directory on your server."
+else
+    echo "Changes pushed to GitHub but not deployed to server."
 fi
 
-echo "Deployment complete! Your changes have been pushed to GitHub."
-echo "The DigitalOcean droplet will need to pull these changes to apply them."
+echo "Deployment process complete!"
 echo ""
-echo "To update the DigitalOcean droplet, SSH into it and run:"
-echo "cd /opt/service_manager && git pull && docker-compose down && docker-compose up -d"
-echo ""
-echo "Or you can run the setup_droplet.sh script again which will do a fresh clone."
-if [[ -f "scripts/update_droplet.sh" ]]; then
-    echo "Alternatively, you can use the update_droplet.sh script on your droplet."
+echo "Summary of actions:"
+echo "- Changes committed and pushed to GitHub"
+echo "- Backup branch created and cleaned up"
+if [[ "$deploy_to_server" == "y" ]]; then
+    echo "- Scripts transferred to server"
+    case $deployment_choice in
+        1) echo "- Update script executed on server" ;;
+        2) 
+            if [[ "$confirm_setup" == "y" ]]; then
+                echo "- Setup script executed on server"
+            else
+                echo "- Setup script transferred but not executed"
+            fi
+            ;;
+        3) echo "- No scripts executed on server" ;;
+    esac
 fi
