@@ -20,11 +20,18 @@ services:
   web:
     build: .
     command: >
-      sh -c "python manage.py collectstatic --noinput &&
-             python manage.py wait_for_db &&
-             python manage.py migrate &&
-             python manage.py createsuperuser --noinput &&
-             gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 service_manager.wsgi:application"
+      sh -c "
+        echo 'Collecting static files...' &&
+        python manage.py collectstatic --noinput &&
+        echo 'Waiting for database...' &&
+        python manage.py wait_for_db &&
+        echo 'Running migrations...' &&
+        python manage.py migrate &&
+        echo 'Creating superuser...' &&
+        python manage.py createsuperuser --noinput || true &&
+        echo 'Starting Gunicorn...' &&
+        gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --log-level debug service_manager.wsgi:application
+      "
     volumes:
       - .:/app
       - static_volume:/app/staticfiles:rw
@@ -34,6 +41,7 @@ services:
     env_file:
       - .env
     environment:
+      - PYTHONUNBUFFERED=1
       - PYTHONWARNINGS=ignore::RuntimeWarning
       - DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME}
       - DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL}
@@ -41,6 +49,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
 
   nginx:
     image: nginx:alpine
@@ -52,6 +61,7 @@ services:
       - "80:80"
     depends_on:
       - web
+    restart: unless-stopped
 
 volumes:
   postgres_data:
