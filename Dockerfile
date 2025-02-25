@@ -1,33 +1,37 @@
-# Use Python 3.12 slim image
+# Use an official Python runtime as a parent image
 FROM python:3.12-slim
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    APP_HOME=/app
 
-# Set work directory
-WORKDIR /app
+# Create and set working directory
+WORKDIR $APP_HOME
 
 # Install system dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        postgresql-client \
+        build-essential \
+        libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create and switch to non-root user
-RUN useradd -m -s /bin/bash app_user
-RUN chown -R app_user:app_user /app
-USER app_user
+# Create app user
+RUN groupadd -r app_group && useradd -r -g app_group app_user
 
 # Install Python dependencies
-COPY --chown=app_user:app_user requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Add local bin to PATH
-ENV PATH="/home/app_user/.local/bin:${PATH}"
+# Copy project files
+COPY . .
 
-# Copy project
-COPY --chown=app_user:app_user . .
+# Create necessary directories and set permissions
+RUN mkdir -p $APP_HOME/staticfiles $APP_HOME/media \
+    && chown -R app_user:app_group $APP_HOME
+
+# Switch to non-root user
+USER app_user
 
 # Collect static files
 RUN python manage.py collectstatic --noinput
