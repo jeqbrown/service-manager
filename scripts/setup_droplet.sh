@@ -12,8 +12,8 @@ apt-get install -y \
     gnupg \
     lsb-release
 
-# Add Docker's official GPG key (with force overwrite)
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg -f
+# Add Docker's official GPG key (fixed the -f flag issue)
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
 # Set up the stable repository
 echo \
@@ -93,7 +93,7 @@ fi
 # Configure UFW to allow HTTP/HTTPS (idempotent)
 ufw allow 80/tcp
 ufw allow 443/tcp
-ufw enable
+ufw --force enable
 
 # Install Certbot for SSL certificates
 apt-get install -y certbot python3-certbot-nginx
@@ -106,8 +106,14 @@ DOMAIN_IP=$(dig +short $DOMAIN)
 echo "Server IP: $SERVER_IP"
 echo "Domain IP: $DOMAIN_IP"
 
+# Stop any running containers to free up ports
+docker-compose down 2>/dev/null || true
+
 # Create a temporary Nginx config for domain validation
 apt-get install -y nginx
+systemctl stop nginx
+
+# Create nginx config file
 cat > /etc/nginx/sites-available/default << EOL
 server {
     listen 80;
@@ -118,14 +124,9 @@ server {
 }
 EOL
 
-# Reload Nginx to apply the temporary config
-systemctl restart nginx
-
+# Check if domain is pointing to this server
 if [ "$SERVER_IP" = "$DOMAIN_IP" ]; then
     echo "Domain is correctly pointing to this server. Proceeding with SSL setup."
-    
-    # Stop nginx to free up port 80 for certbot
-    systemctl stop nginx
     
     # Get SSL certificate
     certbot certonly --standalone -d $DOMAIN --non-interactive --agree-tos --email admin@example.com
@@ -140,26 +141,96 @@ if [ "$SERVER_IP" = "$DOMAIN_IP" ]; then
     # Set proper permissions
     chmod 755 /opt/service_manager/certs
     chmod 644 /opt/service_manager/certs/*.pem
-else
-    echo "Warning: Domain $DOMAIN does not point to this server's IP ($SERVER_IP)."
-    echo "SSL certificate will not be obtained. Please update DNS records and run the script again."
-fi
+    
+    # Create nginx.conf for production with SSL
+    cat > /opt/service_manager/nginx.conf << EOL
+server {
+    listen 80;
+    server_name $DOMAIN;
+    return 301 https://$DOMAIN$request_uri;
+}
 
-# Stop any running containers
-docker-compose down 2>/dev/null || true
+server {
+    listen 443 ssl;
+    server_name $DOMAIN;
 
-# Modify docker-compose.yml to include SSL certificates
-cat > docker-compose.override.yml << EOL
+    ssl_certificate /etc/letsencrypt/live/svcflo.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/svcflo.com/privkey.pem;
+
+    location /static/ {
+        alias /usr/share/nginx/static/;
+    }
+
+    location /media/ {
+        alias /usr/share/nginx/media/;
+    }
+
+    location / {
+        proxy_pass http://web:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOL
+
+    # Create docker-compose override for SSL
+    cat > /opt/service_manager/docker-compose.override.yml << EOL
 version: '3.8'
 
 services:
   nginx:
     volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - /opt/service_manager/certs:/etc/letsencrypt/live/svcflo.com:ro
+    ports:
+      - "80:80"
+      - "443:443"
 EOL
 
+else
+    echo "Warning: Domain $DOMAIN does not point to this server's IP ($SERVER_IP)."
+    echo "SSL certificate will not be obtained. Please update DNS records and run the script again."
+    
+    # Create nginx.conf for HTTP only
+    cat > /opt/service_manager/nginx.conf << EOL
+server {
+    listen 80;
+    server_name $DOMAIN $SERVER_IP;
+
+    location /static/ {
+        alias /usr/share/nginx/static/;
+    }
+
+    location /media/ {
+        alias /usr/share/nginx/media/;
+    }
+
+    location / {
+        proxy_pass http://web:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
+}
+EOL
+
+    # Create docker-compose override for HTTP only
+    cat > /opt/service_manager/docker-compose.override.yml << EOL
+version: '3.8'
+
+services:
+  nginx:
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+EOL
+fi
+
 # Start the application
-docker-compose -f docker-compose.yml up -d
+docker-compose up -d
 
 echo "Setup complete! The application should now be running."
 echo "If SSL certificates were obtained, the site should be accessible at https://$DOMAIN"
