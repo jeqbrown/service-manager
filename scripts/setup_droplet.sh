@@ -18,7 +18,7 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/
 # Set up the stable repository
 echo \
   "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | tee /etc/docker/daemon.json > /dev/null
+  $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 # Install Docker Engine
 apt-get update
@@ -32,32 +32,10 @@ chmod +x /usr/local/bin/docker-compose
 mkdir -p /opt/service_manager
 cd /opt/service_manager
 
-# Handle existing installation
+# Backup existing .env if it exists
 if [ -f .env ]; then
-    echo "Existing installation detected. Preserving .env file..."
-    mv .env ../temp_env
-fi
-
-# Clean up directory while preserving deploy key
-if [ -f ~/.ssh/github_deploy_key ]; then
-    echo "Existing GitHub deploy key found. Skipping key generation..."
-else
-    # Generate SSH key for GitHub
-    ssh-keygen -t ed25519 -C "your-email@example.com" -f ~/.ssh/github_deploy_key -N ""
-
-    # Display the public key
-    echo "Add this public key to your GitHub repository's deploy keys:"
-    cat ~/.ssh/github_deploy_key.pub
-    echo -e "\nPress Enter after you've added the key to GitHub..."
-    read
-
-    # Configure SSH for GitHub
-    mkdir -p ~/.ssh
-    cat > ~/.ssh/config << EOL
-Host github.com
-    IdentityFile ~/.ssh/github_deploy_key
-    StrictHostKeyChecking no
-EOL
+    echo "Backing up existing .env file..."
+    cp .env ../temp_env
 fi
 
 # Clean directory and clone repository
@@ -72,7 +50,7 @@ else
     # Get the Droplet's public IP
     DROPLET_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)
 
-    # Create new environment file
+    # Create new environment file with random passwords
     cat > .env << EOL
 POSTGRES_DB=service_manager
 POSTGRES_USER=service_manager_user
@@ -94,10 +72,14 @@ fi
 ufw allow 80/tcp
 ufw allow 443/tcp
 
-# Stop any running containers
-docker-compose down 2>/dev/null || true
+# Remove any existing containers and volumes
+docker-compose down -v
 
 # Start the application
-docker-compose -f docker-compose.yml up -d
+docker-compose up -d --build
 
 echo "Setup complete! The application should now be running."
+
+
+
+

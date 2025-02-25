@@ -166,6 +166,26 @@ if [ -f "${LOCAL_ENV_FILE}.backup" ]; then
     mv "${LOCAL_ENV_FILE}.backup" "$LOCAL_ENV_FILE"
 fi
 
+
+# Add to deploy_changes.sh before the final echo statements
+echo "Would you like to transfer the setup and update scripts to your server? (y/n): "
+read transfer_scripts
+if [[ "$transfer_scripts" == "y" ]]; then
+    read -p "Enter your server IP or hostname: " server_ip
+    read -p "Enter the SSH username (default: root): " ssh_user
+    ssh_user=${ssh_user:-root}
+    
+    echo "Transferring scripts to ${ssh_user}@${server_ip}..."
+    scp scripts/setup_droplet.sh ${ssh_user}@${server_ip}:/root/
+    scp scripts/update_droplet.sh ${ssh_user}@${server_ip}:/root/
+    
+    echo "Making scripts executable on the server..."
+    ssh ${ssh_user}@${server_ip} "chmod +x /root/setup_droplet.sh /root/update_droplet.sh"
+    
+    echo "Scripts transferred successfully to /root/ directory on your server."
+fi
+
+
 echo "Deployment complete! Your changes have been pushed to GitHub."
 echo "The DigitalOcean droplet will need to pull these changes to apply them."
 echo ""
