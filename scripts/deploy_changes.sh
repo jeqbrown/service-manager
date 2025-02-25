@@ -138,6 +138,9 @@ if [[ -f ".gitignore_temp" ]]; then
     rm .gitignore_temp
 fi
 
+# Force add .env.example if it was modified
+git add -f "$EXAMPLE_ENV_FILE"
+
 # Commit changes
 echo "Committing changes..."
 read -p "Enter commit message: " commit_message
