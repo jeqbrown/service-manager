@@ -28,7 +28,8 @@ COPY . .
 
 # Create necessary directories and set permissions
 RUN mkdir -p $APP_HOME/staticfiles $APP_HOME/media \
-    && chown -R app_user:app_group $APP_HOME
+    && chown -R app_user:app_group $APP_HOME \
+    && chmod -R 755 $APP_HOME/service/migrations
 
 # Switch to non-root user
 USER app_user

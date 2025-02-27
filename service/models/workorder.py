@@ -56,6 +56,18 @@ class WorkOrder(models.Model):
         """Check if all submitted reports are approved"""
         reports = self.service_reports.all()
         return reports.exists() and not reports.exclude(approval_status='approved').exists()
+    
+    def has_reports(self):
+        """Check if work order has any service reports"""
+        return self.service_reports.exists()
+    
+    def get_pending_reports(self):
+        """Get service reports that are not yet approved"""
+        return self.service_reports.exclude(approval_status='approved')
+    
+    def get_latest_report(self):
+        """Get the most recent service report"""
+        return self.service_reports.order_by('-service_date').first()
 
     def clean(self):
         cleaned_data = super().clean()
@@ -77,7 +89,7 @@ class WorkOrder(models.Model):
                     'status': 'Only managers can mark work orders as completed.'
                 })
             
-            if not self.service_reports.exists():
+            if not self.has_reports():
                 raise ValidationError({
                     'status': 'Cannot complete work order without at least one service report.'
                 })
@@ -113,5 +125,3 @@ class WorkOrder(models.Model):
 
     def __str__(self):
         return f"WO-{self.id} ({self.instrument})"
-
-

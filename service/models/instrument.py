@@ -1,15 +1,15 @@
 from django.db import models
-from django.contrib.auth.models import User
+from .base import TrackingModel
 from .customer import Customer
 
-class InstrumentType(models.Model):
+class InstrumentType(TrackingModel):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
 
     def __str__(self):
         return self.name
 
-class Instrument(models.Model):
+class Instrument(TrackingModel):
     instrument_type = models.ForeignKey(
         InstrumentType,
         on_delete=models.PROTECT,
@@ -19,7 +19,7 @@ class Instrument(models.Model):
     serial_number = models.CharField(max_length=50, unique=True)
     installation_date = models.DateField()
     assigned_to = models.ForeignKey(
-        User,
+        'auth.User',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

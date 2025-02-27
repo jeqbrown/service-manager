@@ -68,8 +68,8 @@ class InstrumentCountFilter(admin.SimpleListFilter):
 class ContactInline(admin.TabularInline):
     model = Contact
     extra = 1
-    fields = ('primary_contact', 'name', 'email', 'phone', 'role')
-    ordering = ['-primary_contact']
+    fields = ('is_primary', 'name', 'email', 'phone', 'role')
+    ordering = ('-is_primary', 'name')  # Changed from primary_contact to is_primary
 
 class InstrumentInline(admin.TabularInline):
     model = Instrument

@@ -1,11 +1,8 @@
 from django.urls import path
-from .admin.views import instrument_type_options, get_model_option
+from .api.views import dashboard_view
+
+app_name = 'service'
 
 urlpatterns = [
-    path('admin/service/instrumenttype/ajax/options/', 
-         instrument_type_options, 
-         name='admin_instrumenttype_options'),
-    path('admin/service/<str:model_name>/<int:object_id>/get_option/',
-         get_model_option,
-         name='admin_get_model_option'),
+    path('api/dashboard/', dashboard_view, name='dashboard'),
 ]

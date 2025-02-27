@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 class ServiceReport(models.Model):
     STATUS_DRAFT = 'draft'
@@ -17,7 +18,11 @@ class ServiceReport(models.Model):
         (STATUS_REJECTED, 'Rejected'),
     ]
 
-    work_order = models.ForeignKey('WorkOrder', on_delete=models.CASCADE, related_name='service_reports')
+    work_order = models.ForeignKey(
+        'WorkOrder', 
+        on_delete=models.CASCADE, 
+        related_name='service_reports'
+    )
     created_by = models.ForeignKey(
         User, 
         on_delete=models.PROTECT,
@@ -50,9 +55,30 @@ class ServiceReport(models.Model):
     @property
     def customer(self):
         return self.work_order.customer if self.work_order else None
+    
+    @property
+    def instrument(self):
+        return self.work_order.instrument if self.work_order else None
 
     def get_approval_status_display(self):
         return dict(self.APPROVAL_STATUS_CHOICES).get(self.approval_status, self.approval_status)
+
+    def clean(self):
+        super().clean()
+        
+        # Ensure service date is not in the future
+        if self.service_date and self.service_date > timezone.now().date():
+            raise ValidationError({
+                'service_date': 'Service date cannot be in the future.'
+            })
+            
+        # Ensure work order is not already completed
+        if self.work_order and self.work_order.status == self.work_order.STATUS_COMPLETED:
+            raise ValidationError({
+                'work_order': 'Cannot add service reports to a completed work order.'
+            })
+            
+        return self
 
     def save(self, *args, **kwargs):
         if self.approval_status == self.STATUS_APPROVED and not self.approval_date:

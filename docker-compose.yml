@@ -33,9 +33,9 @@ services:
         gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --log-level debug service_manager.wsgi:application
       "
     volumes:
-      - .:/app
-      - static_volume:/app/staticfiles:rw
-      - media_volume:/app/media:rw
+      - ./:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
     ports:
       - "8000:8000"
     env_file:
