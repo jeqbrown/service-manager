@@ -2,7 +2,7 @@ import logging
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from django.db.models import Count, Q
+from django.db.models import Count, Q, OuterRef, Subquery
 from django.db import models
 from django import forms
 from ..models import (
@@ -68,8 +68,8 @@ class InstrumentCountFilter(admin.SimpleListFilter):
 class ContactInline(admin.TabularInline):
     model = Contact
     extra = 1
-    fields = ('is_primary', 'name', 'email', 'phone', 'role')
-    ordering = ('-is_primary', 'name')  # Changed from primary_contact to is_primary
+    fields = ('is_primary', 'name', 'email', 'phone')
+    ordering = ['-is_primary']
 
 class InstrumentInline(admin.TabularInline):
     model = Instrument
@@ -106,6 +106,7 @@ class ServiceAgreementInline(admin.TabularInline):
         return ""
     actions.short_description = "Actions"
 
+@admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('name', 'website', 'agreement_status', 'instrument_count', 'contact_count', 'recent_service')
     search_fields = ('name', 'website', 'address')
@@ -113,25 +114,57 @@ class CustomerAdmin(admin.ModelAdmin):
         AgreementStatusFilter,
         InstrumentCountFilter,
     ]
-    readonly_fields = ('service_overview',)
+    readonly_fields = ('service_overview', 'created_by', 'updated_by', 'created_at', 'updated_at')
     inlines = [ContactInline, InstrumentInline, ServiceAgreementInline]
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'address', 'website')
+        }),
+        ('Service Information', {
+            'fields': ('service_overview',),
+            'classes': ('wide',)
+        }),
+        ('Audit Information', {
+            'fields': ('created_by', 'created_at', 'updated_by', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
-    def get_list_filter(self, request):
-        """Explicitly define allowed filters"""
-        return self.list_filter
+    def save_model(self, request, obj, form, change):
+        if not change:  # If creating new object
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if not instance.pk:  # If creating new object
+                instance.created_by = request.user
+            instance.updated_by = request.user
+            instance.save()
+        formset.save_m2m()
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            total_instruments=Count('instruments', distinct=True),
-            total_contacts=Count('contacts', distinct=True),
-            latest_workorder=models.Max('instruments__workorders__created_at')
-        ).select_related()
+        return (super().get_queryset(request)
+                .annotate(
+                    total_instruments=Count('instruments', distinct=True),
+                    total_contacts=Count('contacts', distinct=True),
+                    latest_workorder=Subquery(
+                        WorkOrder.objects.filter(
+                            customer=OuterRef('pk')
+                        ).order_by('-created_at')
+                        .values('created_at')[:1]
+                    )
+                )
+                .select_related())
 
     def recent_service(self, obj):
         if obj.latest_workorder:
             return format_html(
                 '<span style="color: {};">{}</span>',
-                '#28a745' if obj.latest_workorder else '#dc3545',
+                '#28a745',
                 obj.latest_workorder.strftime('%Y-%m-%d')
             )
         return format_html(
@@ -144,16 +177,6 @@ class CustomerAdmin(admin.ModelAdmin):
         models.TextField: {'widget': forms.Textarea(attrs={'rows': 4})},
     }
 
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('name', 'address', 'website')
-        }),
-        ('Service Information', {
-            'fields': ('service_overview',),
-            'classes': ('wide',)
-        }),
-    )
-
     def service_overview(self, obj):
         logger.info(f"=== Starting service_overview for customer: {obj.name if obj else 'None'} ===")
         if not obj:
@@ -165,121 +188,47 @@ class CustomerAdmin(admin.ModelAdmin):
                 '<h2 style="background: #79aec8; color: white; padding: 8px 12px;">Service Overview</h2>'
             ]
 
-            # Get agreements count and related data
-            agreements = obj.agreements.all().prefetch_related(
-                'entitlements', 
-                'entitlements__entitlement_type', 
-                'entitlements__instrument'
-            )
-            agreements_count = len(agreements)
-            logger.info(f"Found {agreements_count} agreements")
-            
-            # Recent Work Orders section
-            recent_work_orders = WorkOrder.objects.filter(
-                customer=obj
-            ).select_related('instrument').prefetch_related('service_reports').order_by('-created_at')[:5]
+            # Recent Work Orders
+            recent_work_orders = (WorkOrder.objects
+                                .filter(customer=obj)
+                                .select_related('customer')
+                                .order_by('-created_at')[:5])
 
-            html.append('<div style="padding: 20px;">')
-            
-            # Work Orders Quick View
-            html.extend([
-                '<div style="margin-bottom: 20px;">',
-                '<h3 style="color: #666;">Recent Work Orders</h3>',
-                '<table style="width: 100%; border-collapse: collapse;">',
-                '<thead>',
-                '<tr style="background-color: #f5f5f5;">',
-                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">WO #</th>',
-                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Status</th>',
-                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Instrument</th>',
-                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Description</th>',
-                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Actions</th>',
-                '</tr>',
-                '</thead>',
-                '<tbody>'
-            ])
-
-            for wo in recent_work_orders:
-                status_badge = get_status_badge(wo.status)
-                wo_url = reverse('admin:service_workorder_change', args=[wo.pk])
-                new_sr_url = reverse('admin:service_servicereport_add')
-                
-                # Get related service reports
-                service_reports = wo.service_reports.all()
-                sr_links = []
-                for sr in service_reports:
-                    sr_url = reverse('admin:service_servicereport_change', args=[sr.pk])
-                    sr_links.append(
-                        f'<a href="{sr_url}" class="button" '
-                        f'style="margin-right: 5px; font-size: 0.8em;">SR-{sr.pk}</a>'
+            if recent_work_orders:
+                html.append('<h3>Recent Work Orders</h3>')
+                html.append('<ul>')
+                for wo in recent_work_orders:
+                    html.append(
+                        f'<li>{wo.created_at.strftime("%Y-%m-%d")} - {wo.title} '
+                        f'({wo.get_status_display()})</li>'
                     )
-                
-                sr_html = ''.join(sr_links) if sr_links else ''
-                
-                # Truncate description if it's too long
-                description = wo.description or "-"
-                if len(description) > 50:
-                    description = description[:47] + "..."
-                
-                html.append(
-                    f'<tr style="border: 1px solid #ddd;">'
-                    f'<td style="padding: 8px;">WO-{wo.pk}</td>'
-                    f'<td style="padding: 8px;">{status_badge}</td>'
-                    f'<td style="padding: 8px;">{wo.instrument}</td>'
-                    f'<td style="padding: 8px;">{description}</td>'
-                    f'<td style="padding: 8px;">'
-                    f'<a href="{wo_url}" class="button" style="margin-right: 5px;" target="_blank">View WO</a>'
-                    f'<a href="{new_sr_url}?work_order={wo.pk}" class="button" style="margin-right: 5px;" target="_blank">New SR</a>'
-                    f'{sr_html}'
-                    f'</td>'
-                    f'</tr>'
-                )
-
-            html.extend([
-                '</tbody>',
-                '</table>',
-                '</div>'
-            ])
-
-            # Service Agreements section
-            if agreements_count == 0:
-                html.append('<p style="padding: 20px;">No service agreements found for this customer.</p>')
+                html.append('</ul>')
             else:
-                html.append(f'<p><strong>Total Agreements:</strong> {agreements_count}</p>')
-                
-                for agreement in agreements:
-                    status_badge = get_status_badge(agreement.status)
-                    agreement_url = reverse('admin:service_serviceagreement_change', args=[agreement.pk])
-                    
-                    html.extend([
-                        '<div style="margin: 10px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">',
-                        f'<h3 style="margin: 0 0 10px 0;">'
-                        f'<a href="{agreement_url}" style="text-decoration: none;">Agreement #{agreement.id}</a></h3>',
-                        f'<p><strong>Status:</strong> {status_badge}</p>',
-                        f'<p><strong>Period:</strong> {agreement.start_date} to {agreement.end_date}</p>',
-                    ])
+                html.append('<p>No recent work orders found.</p>')
 
-                    # Add entitlements section
-                    entitlements = agreement.entitlements.all()
-                    if entitlements:
-                        html.append('<div style="margin-top: 10px;">')
-                        html.append('<h4 style="margin: 5px 0;">Entitlements:</h4>')
-                        html.append('<ul style="list-style-type: none; padding-left: 0;">')
-                        for ent in entitlements:
-                            remaining = ent.remaining
-                            used = ent.used
-                            html.append(
-                                f'<li style="margin: 5px 0;">'
-                                f'• {ent.entitlement_type.name} ({ent.instrument}): '
-                                f'<strong>{remaining}</strong> remaining '
-                                f'(<span style="color: #666;">{used}/{ent.total} used</span>)'
-                                f'</li>'
-                            )
-                        html.append('</ul>')
-                        html.append('</div>')
+            # Active Service Agreements
+            active_agreements = (ServiceAgreement.objects
+                               .filter(customer=obj, status='active')
+                               .select_related('customer')
+                               .order_by('-created_at'))
 
-                    html.append('</div>')
-            
-            html.append('</div>')
+            if active_agreements:
+                html.append('<h3>Active Service Agreements</h3>')
+                html.append('<ul>')
+                for agreement in active_agreements:
+                    html.append(
+                        f'<li>{agreement.created_at.strftime("%Y-%m-%d")} - '
+                        f'Valid until: {agreement.end_date}</li>'
+                    )
+                html.append('</ul>')
+            else:
+                html.append('<p>No active service agreements found.</p>')
+
+            # Instrument Count
+            instrument_count = obj.instruments.count()
+            html.append(f'<h3>Equipment Summary</h3>')
+            html.append(f'<p>Total Instruments: {instrument_count}</p>')
+
             html.append('</div>')
             return format_html(''.join(html))
 
@@ -308,3 +257,10 @@ class CustomerAdmin(admin.ModelAdmin):
         return obj.total_contacts
     contact_count.short_description = "Contacts"
     contact_count.admin_order_field = 'total_contacts'
+
+    def get_search_results(self, request, queryset, search_term):
+        """Enable autocomplete search."""
+        queryset, may_have_duplicates = super().get_search_results(
+            request, queryset, search_term
+        )
+        return queryset, may_have_duplicates

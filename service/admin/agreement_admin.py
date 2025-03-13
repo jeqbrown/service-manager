@@ -65,16 +65,11 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
     inlines = [EntitlementInline]
     autocomplete_fields = ['customer']
     change_list_template = 'admin/service/serviceagreement/change_list.html'
-    readonly_fields = ('service_summary', 'service_history')  # Add service_history here
+    readonly_fields = ('service_summary', 'service_history')
 
     def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        return qs.select_related('customer').prefetch_related(
-            'entitlements',
-            'entitlements__workorders',
-            'entitlements__entitlement_type',
-            'entitlements__workorders__service_reports__created_by'  # Updated from technician
-        )
+        return (super().get_queryset(request)
+                .select_related('customer'))
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
@@ -160,116 +155,57 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
     update_sa_statuses.css_class = 'refresh-button'
 
     def service_summary(self, obj):
-        """Display summary of Work Orders and Service Reports."""
-        html = ['<div class="service-summary">']
-        
-        # Work Orders Summary
-        work_orders = WorkOrder.objects.filter(
-            entitlement__agreement=obj
-        ).select_related('assigned_to', 'instrument')
-        
-        html.append('<div class="summary-section"><h3>Work Orders</h3>')
-        html.append('<table style="width: 100%; border-collapse: collapse;">')
-        html.append('''
-            <tr style="background: #f5f5f5;">
-                <th style="padding: 8px; border: 1px solid #ddd;">WO #</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Status</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Instrument</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Assigned To</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Created</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Actions</th>
-            </tr>
-        ''')
+        """Display summary of services for this agreement."""
+        if not obj.customer:
+            return "No customer associated with this agreement"
 
-        for wo in work_orders:
-            status_colors = {
-                'open': '#ffc107',      # yellow
-                'in_progress': '#17a2b8',  # blue
-                'completed': '#28a745',    # green
-                'cancelled': '#dc3545'     # red
-            }
-            status_color = status_colors.get(wo.status, '#6c757d')
+        try:
+            # Get entitlements for this agreement
+            entitlements = obj.entitlements.all().select_related('entitlement_type')
             
-            html.append(format_html('''
-                <tr style="border: 1px solid #ddd;">
-                    <td style="padding: 8px; border: 1px solid #ddd;">WO-{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">
-                        <span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px;">
-                            {}
-                        </span>
-                    </td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">
-                        <a href="{}" class="button">View</a>
-                    </td>
-                </tr>
-            ''',
-                wo.id,
-                status_color,
-                wo.get_status_display(),
-                wo.instrument,
-                wo.assigned_to.get_full_name() if wo.assigned_to else '-',
-                wo.created_at.strftime('%Y-%m-%d'),
-                reverse('admin:service_workorder_change', args=[wo.id])
-            ))
-        
-        html.append('</table></div>')
+            html = ['<div class="service-summary" style="margin-bottom: 20px;">']
+            
+            # Agreement details
+            html.append('<h3 style="margin-bottom: 10px;">Agreement Details</h3>')
+            html.append(f'<p><strong>Status:</strong> {obj.get_status_display()}</p>')
+            html.append(f'<p><strong>Valid Period:</strong> {obj.start_date} to {obj.end_date}</p>')
+            
+            # Entitlements summary
+            if entitlements:
+                html.append('<h3 style="margin-top: 15px;">Entitlements</h3>')
+                html.append('<ul>')
+                for ent in entitlements:
+                    used = ent.used_count if hasattr(ent, 'used_count') else 0
+                    remaining = ent.total - used
+                    html.append(
+                        f'<li>{ent.entitlement_type.name}: {used}/{ent.total} used '
+                        f'({remaining} remaining)</li>'
+                    )
+                html.append('</ul>')
+            else:
+                html.append('<p>No entitlements defined for this agreement</p>')
+            
+            html.append('</div>')
+            return format_html(''.join(html))
+            
+        except Exception as e:
+            return format_html(
+                '<div style="color: #721c24; background-color: #f8d7da; '
+                'padding: 10px; border: 1px solid #f5c6cb;">'
+                f'Error generating summary: {str(e)}</div>'
+            )
 
-        # Service Reports Summary
-        service_reports = ServiceReport.objects.filter(
-            work_order__entitlement__agreement=obj
-        ).select_related('work_order', 'created_by')
-        
-        html.append('<div class="summary-section"><h3>Service Reports</h3>')
-        html.append('<table style="width: 100%; border-collapse: collapse;">')
-        html.append('''
-            <tr style="background: #f5f5f5;">
-                <th style="padding: 8px; border: 1px solid #ddd;">SR #</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Status</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">WO #</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Technician</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Date</th>
-                <th style="padding: 8px; border: 1px solid #ddd;">Actions</th>
-            </tr>
-        ''')
-
-        for sr in service_reports:
-            html.append(format_html('''
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd;">SR-{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">WO-{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">{}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">
-                        <a href="{}" class="button">View</a>
-                    </td>
-                </tr>
-            ''',
-                sr.id,
-                sr.get_approval_status_display(),
-                sr.work_order.id,
-                sr.created_by.get_full_name() if sr.created_by else '-',
-                sr.service_date.strftime('%Y-%m-%d'),
-                reverse('admin:service_servicereport_change', args=[sr.id])
-            ))
-
-        html.append('</table></div>')
-        html.append('</div>')
-        
-        return format_html(''.join(html))
-    
     service_summary.short_description = 'Service Summary'
 
     def service_history(self, obj):
+        """Display service history for the agreement's customer."""
+        if not obj.customer:
+            return "No customer associated with this agreement"
+
         work_orders = WorkOrder.objects.filter(
-            entitlement__agreement=obj
+            customer=obj.customer
         ).select_related(
-            'assigned_to',
-            'instrument',
-            'entitlement__entitlement_type'
+            'customer'
         ).prefetch_related(
             'service_reports',
             'service_reports__created_by'
@@ -281,7 +217,7 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
         html = ['<div class="service-history">']
         
         for wo in work_orders:
-            status_badge = get_status_badge(wo.get_status_display())
+            status_badge = get_status_badge(wo.status)
             
             # Get service reports for this work order
             service_reports = wo.service_reports.all()
@@ -289,28 +225,19 @@ class ServiceAgreementAdmin(admin.ModelAdmin):
             for sr in service_reports:
                 sr_url = reverse('admin:service_servicereport_change', args=[sr.pk])
                 sr_links.append(
-                    f'<a href="{sr_url}" class="button" '
-                    f'style="margin-right: 5px; font-size: 0.8em;">SR-{sr.pk}</a>'
+                    f'<a href="{sr_url}">'
+                    f'Report {sr.pk} by {sr.created_by.get_full_name() or sr.created_by.username}'
+                    f'</a>'
                 )
-            
-            sr_html = ''.join(sr_links) if sr_links else 'No service reports'
-            
-            description = wo.description or "-"
-            if len(description) > 50:
-                description = description[:47] + "..."
-            
-            html.append(f'''
-                <div style="margin-bottom: 15px; border: 1px solid #ddd; padding: 10px;">
-                    <div style="margin-bottom: 10px;">
-                        <strong>WO-{wo.pk}</strong> - {status_badge}
-                        <br>
-                        <span style="color: #666;">{description}</span>
-                    </div>
-                    <div>
-                        <strong>Service Reports:</strong> {sr_html}
-                    </div>
-                </div>
-            ''')
+
+            wo_url = reverse('admin:service_workorder_change', args=[wo.pk])
+            html.append(
+                f'<div class="work-order-entry" style="margin-bottom: 15px;">'
+                f'<strong>Work Order:</strong> <a href="{wo_url}">{wo.title}</a> {status_badge}<br>'
+                f'<strong>Created:</strong> {wo.created_at.strftime("%Y-%m-%d %H:%M")}<br>'
+                f'<strong>Service Reports:</strong> {"<br>".join(sr_links) if sr_links else "None"}'
+                f'</div>'
+            )
 
         html.append('</div>')
         return format_html(''.join(html))
